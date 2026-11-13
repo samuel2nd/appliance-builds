@@ -278,6 +278,43 @@ EOF
 chown -R "$MV_USER:$MV_USER" "$AUTOSTART_DIR" "$FF_PREFS_DIR"
 echo "  Autostart configured"
 
+# GNOME application launchers
+APPS_DIR="$MV_HOME/.local/share/applications"
+mkdir -p "$APPS_DIR"
+
+cat > "$APPS_DIR/rtspmv.desktop" <<EOF
+[Desktop Entry]
+Type=Application
+Name=RTSPmv Multiviewer
+Comment=Open the camera multiviewer fullscreen
+Exec=/usr/bin/env python3 $RTSPMV_DIR/rtspmv.py --kiosk
+Icon=$RTSPMV_DIR/rtspmv.svg
+Categories=AudioVideo;Video;
+EOF
+
+cat > "$APPS_DIR/rtspmv-settings.desktop" <<EOF
+[Desktop Entry]
+Type=Application
+Name=RTSPmv Settings
+Comment=Cameras, layouts and routing
+Exec=xdg-open http://127.0.0.1:8090/settings
+Icon=$RTSPMV_DIR/rtspmv.svg
+Categories=AudioVideo;Video;
+EOF
+
+cat > "$APPS_DIR/rtspmv-hide.desktop" <<EOF
+[Desktop Entry]
+Type=Application
+Name=RTSPmv Hide MV (maintenance)
+Comment=Close the fullscreen MV and stop it reopening
+Exec=systemctl --user stop rtspmv-kiosk.service
+Icon=$RTSPMV_DIR/rtspmv.svg
+Categories=AudioVideo;Video;
+EOF
+
+chown -R "$MV_USER:$MV_USER" "$APPS_DIR"
+echo "  Application launchers created"
+
 # ============================================================
 # 8. Firewall (if ufw is active)
 # ============================================================
