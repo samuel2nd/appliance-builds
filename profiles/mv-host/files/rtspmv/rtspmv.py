@@ -494,8 +494,9 @@ class Go2rtc:
             f'  username: "{self.api_user}"',
             f'  password: "{self.api_pass}"',
             "  local_auth: true",
-            # Allow WebSocket connections from RTSPmv's own origins (go2rtc 1.9+ origin check)
-            f'  origin: "http://127.0.0.1:{s["http_port"]} http://localhost:{s["http_port"]}"',
+            # go2rtc 1.9+ requires origin for WebSocket; only "*" is supported.
+            # Safe since go2rtc binds to localhost (127.0.0.1) only.
+            '  origin: "*"',
             "rtsp:",
             '  listen: ""',
             "rtmp:",
