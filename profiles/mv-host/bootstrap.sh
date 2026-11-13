@@ -23,12 +23,15 @@ RTSPMV_VERSION="0.4.0"
 MV_USER="mv"
 MV_HOME="/home/$MV_USER"
 
-# Site-specific config (optional) - copy site.env.example to site.env
+# Site-specific config (optional) - copy site.env.example to /tmp/site.env before install
 SITE_ENV="/tmp/site.env"
 if [ -f "$SITE_ENV" ]; then
     echo ">>> Loading site config from $SITE_ENV"
     # shellcheck source=/dev/null
     source "$SITE_ENV"
+else
+    echo ">>> WARNING: No $SITE_ENV found - using defaults (hostname=mv-appliance)"
+    echo "    To customize: copy site.env.example to /tmp/site.env before running bootstrap"
 fi
 
 # Defaults (can be overridden by site.env)

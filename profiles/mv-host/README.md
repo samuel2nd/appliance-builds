@@ -44,7 +44,24 @@ sudo nmcli connection up "Wired connection 1"
 sudo nmcli connection up "Camera Network"
 ```
 
-See `site.env.example` for site-specific configuration.
+## Site-Specific Configuration
+
+Site-specific values (IPs, interface names, hostname) are stored in a local `site.env` file that is **not tracked in git**.
+
+**Before running bootstrap.sh**, copy the template and customize:
+
+```bash
+# On the target machine (via SSH or local terminal):
+curl -fsSL https://raw.githubusercontent.com/samuel2nd/appliance-builds/master/profiles/mv-host/site.env.example \
+  -o /tmp/site.env
+
+# Edit with your site values:
+nano /tmp/site.env
+```
+
+If `/tmp/site.env` is not present, bootstrap.sh will warn and use defaults (`hostname=mv-appliance`).
+
+See `site.env.example` for available variables.
 
 ## What the Preseed Answers
 
