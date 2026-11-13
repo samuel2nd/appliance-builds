@@ -99,6 +99,10 @@ sudo dd if=debian-13.7.0-amd64-netinst.iso of=/dev/sdX bs=4M status=progress con
 - Wired network with DHCP and internet access
 - Target hardware compatible with the profile
 
+## Notes
+
+- **Branch name:** This repo uses `master`. All raw URLs must reference `master`, not `main`.
+
 ## Security Notes
 
 - No default passwords are preseeded; the installer prompts for the user password

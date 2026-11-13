@@ -14,7 +14,7 @@ GO2RTC_VERSION="v1.9.15"
 GO2RTC_SHA256="20b46c6910734cb05ecefb234066f36868ff19b42ba1418a7a32e13a3e035712"
 RTSPMV_VERSION="0.4.0"
 
-REPO_BASE="https://raw.githubusercontent.com/samuel2nd/appliance-builds/main/profiles/mv-host"
+REPO_BASE="https://raw.githubusercontent.com/samuel2nd/appliance-builds/master/profiles/mv-host"
 MV_USER="mv"
 MV_HOME="/home/$MV_USER"
 

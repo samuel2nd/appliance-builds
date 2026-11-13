@@ -72,7 +72,7 @@ The `late_command` fetches and runs `bootstrap.sh`, which:
    ```
    Or raw GitHub URL:
    ```
-   https://raw.githubusercontent.com/samuel2nd/appliance-builds/main/profiles/mv-host/preseed.cfg
+   https://raw.githubusercontent.com/samuel2nd/appliance-builds/master/profiles/mv-host/preseed.cfg
    ```
 4. Enter password for `mv` user when prompted
 5. Wait for installation and reboot
