@@ -1,0 +1,35 @@
+{
+	"id": "cobalt-9905-color-corrector",
+	"name": "Cobalt 9905-MPx",
+	"shortname": "cobalt9905cc",
+	"description": "Full control of a Cobalt Digital 9905-MPx openGear card via its native WebSocket API: Color Proc, Color Correction, 3D LUT (User/NBCU), HDR input tagging, Frame Sync, Scaler, Input/Output routing, HDMI/HDR InfoFrame, card presets and live status \u2014 all 4 paths.",
+	"version": "2.1.1",
+	"license": "MIT",
+	"repository": "",
+	"bugs": "",
+	"maintainers": [
+		{
+			"name": "Samuel",
+			"email": ""
+		}
+	],
+	"runtime": {
+		"type": "node18",
+		"api": "nodejs-ipc",
+		"apiVersion": "0.0.0",
+		"entrypoint": "../main.js"
+	},
+	"legacyIds": [],
+	"manufacturer": "Cobalt Digital",
+	"products": [
+		"9905-MPx"
+	],
+	"keywords": [
+		"Color Correction",
+		"3D LUT",
+		"HDR",
+		"Frame Sync",
+		"openGear",
+		"Broadcast"
+	]
+}

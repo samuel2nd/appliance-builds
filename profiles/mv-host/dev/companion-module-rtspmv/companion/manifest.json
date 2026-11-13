@@ -1,0 +1,35 @@
+{
+  "$schema": "../node_modules/@companion-module/base/assets/manifest.schema.json",
+  "type": "connection",
+  "id": "rtspmv",
+  "name": "rtspmv",
+  "shortname": "RTSPmv",
+  "description": "Route cameras, change layouts and recall presets on an RTSPmv software multiviewer",
+  "version": "0.2.0",
+  "license": "MIT",
+  "repository": "",
+  "bugs": "",
+  "maintainers": [
+    {
+      "name": "Samuel"
+    }
+  ],
+  "legacyIds": [],
+  "runtime": {
+    "type": "node22",
+    "api": "nodejs-ipc",
+    "apiVersion": "0.0.0",
+    "entrypoint": "../src/main.js"
+  },
+  "manufacturer": "RTSPmv",
+  "products": [
+    "Multiviewer"
+  ],
+  "keywords": [
+    "multiviewer",
+    "rtsp",
+    "camera",
+    "unifi",
+    "go2rtc"
+  ]
+}

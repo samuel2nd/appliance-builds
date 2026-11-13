@@ -1,0 +1,15 @@
+{
+	"name": "companion-module-cobalt-9905-color-corrector",
+	"version": "2.1.1",
+	"main": "main.js",
+	"license": "MIT",
+	"scripts": {
+		"format": "prettier -w .",
+		"gen-params": "python3 tools/gen_params.py tools/models_9905MPX.txt params.js",
+		"test": "node test/simulate.js"
+	},
+	"dependencies": {
+		"@companion-module/base": "^1.12.0",
+		"ws": "^8.16.0"
+	}
+}

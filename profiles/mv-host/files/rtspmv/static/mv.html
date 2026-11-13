@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RTSPmv</title>
+<style>
+  :root { --bg:#000; --line:#1c1f24; --label-bg:rgba(0,0,0,.62); --fg:#f2f4f7; --dim:#5d6470; --warn:#f2b134; --bad:#e5484d; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--fg);
+    font:500 14px/1.2 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow:hidden; }
+  body.idle { cursor:none; }
+  #mv { position:fixed; inset:0; display:grid; gap:2px; background:var(--line); }
+  .tile { position:relative; background:#000; overflow:hidden; min-width:0; min-height:0; }
+  .tile video-stream, .tile video { position:absolute; inset:0; width:100% !important; height:100% !important; display:block; }
+  /* hide go2rtc player chrome (mode/status badge) */
+  .tile video-stream .info, .tile video-stream .mode, .tile video-stream .status { display:none !important; }
+  #mv.fit-contain video { object-fit:contain; }
+  #mv.fit-fill video { object-fit:fill; }
+  .label { position:absolute; left:8px; bottom:8px; display:flex; gap:6px; align-items:center;
+    padding:4px 8px; background:var(--label-bg); border-radius:4px; font-size:clamp(11px,1.4vw,18px);
+    letter-spacing:.02em; pointer-events:none; }
+  .num { color:var(--dim); font-variant-numeric:tabular-nums; }
+  #mv:not(.labels) .label { display:none; }
+  .stats { position:absolute; right:8px; top:8px; padding:3px 6px; background:var(--label-bg); border-radius:4px;
+    font:12px/1.3 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color:#cfd5de; display:none; pointer-events:none; }
+  #mv.stats .stats { display:block; }
+  .stats .bad { color:var(--warn); }
+  .nosig { position:absolute; inset:0; display:none; place-items:center; pointer-events:none;
+    background:rgba(229,72,77,.10); box-shadow:inset 0 0 0 3px var(--bad); }
+  .nosig span { padding:.35em .9em; border-radius:4px; background:var(--bad); color:#fff;
+    font-weight:700; font-size:clamp(14px,2.2vw,30px); letter-spacing:.14em;
+    animation:nosig-blink 1.2s ease-in-out infinite; }
+  @keyframes nosig-blink { 50% { opacity:.35; } }
+  .tile.down .nosig { display:grid; }
+  .empty { display:grid; place-items:center; }
+  .empty .num { font-size:clamp(14px,3vw,40px); color:#22262c; }
+  #banner { position:fixed; left:50%; top:16px; transform:translateX(-50%); padding:8px 14px; border-radius:6px;
+    background:#2a1d08; color:var(--warn); display:none; z-index:10; }
+  #banner.show { display:block; }
+  #help { position:fixed; right:12px; bottom:12px; color:var(--dim); font-size:12px; opacity:0; transition:opacity .3s; }
+  body:not(.idle) #help { opacity:1; }
+  #help a { color:inherit; }
+</style>
+</head>
+<body>
+<div id="mv" class="fit-contain labels"></div>
+<div id="banner"></div>
+<div id="help">F fullscreen · S stats · <a href="/settings">Settings</a></div>
+<script type="module">
+import { loadPlayer, makePlayer, videoOf, areaOf } from '/static/player.js';
+
+const root = document.getElementById('mv');
+const banner = document.getElementById('banner');
+const els = {};          // cam id -> { wrap, player, label, num, stats, rev, lastT, stall, frames }
+let S = null, ready = false, codecs = {}, statsLocal = null;
+
+function setBanner(msg) { banner.textContent = msg || ''; banner.classList.toggle('show', !!msg); }
+
+function render() {
+  if (!S) return;
+  const L = S.layouts[S.layout];
+  root.style.gridTemplateColumns = `repeat(${L.cols}, 1fr)`;
+  root.style.gridTemplateRows = `repeat(${L.rows}, 1fr)`;
+  root.classList.toggle('labels', !!S.settings.labels);
+  root.classList.toggle('stats', statsLocal ?? !!S.settings.stats);
+  root.classList.toggle('fit-fill', S.settings.fit === 'fill');
+  root.classList.toggle('fit-contain', S.settings.fit !== 'fill');
+
+  root.querySelectorAll('.empty').forEach(e => e.remove());
+  L.tiles.forEach((t, i) => {
+    if (S.tiles[i]) return;
+    const d = document.createElement('div');
+    d.className = 'tile empty';
+    d.style.gridArea = areaOf(t);
+    d.innerHTML = `<span class="num">${i + 1}</span>`;
+    root.append(d);
+  });
+
+  const ids = new Set(S.cameras.map(c => c.id));
+  for (const id of Object.keys(els)) if (!ids.has(id)) { els[id].wrap.remove(); delete els[id]; }
+
+  for (const c of S.cameras) {
+    let e = els[c.id];
+    if (e && e.rev !== c.rev) { e.wrap.remove(); e = null; }
+    if (!e) {
+      const wrap = document.createElement('div');
+      wrap.className = 'tile cam';
+      wrap.innerHTML = `<div class="nosig"><span>NO SIGNAL</span></div>
+        <div class="label"><span class="num"></span><span class="name"></span></div><div class="stats"></div>`;
+      root.append(wrap);
+      e = els[c.id] = { wrap, player: null, rev: c.rev, label: wrap.querySelector('.name'),
+        num: wrap.querySelector('.num'), stats: wrap.querySelector('.stats'), lastT: 0, stall: 0, frames: 0 };
+    }
+    if (ready && !e.player) { e.player = makePlayer(S, c.id); e.wrap.prepend(e.player); }
+    e.label.textContent = c.name;
+    const i = S.tiles.indexOf(c.id);
+    if (i < 0) { e.wrap.style.display = 'none'; continue; }
+    e.wrap.style.display = '';
+    e.wrap.style.gridArea = areaOf(L.tiles[i]);
+    e.num.textContent = i + 1;
+  }
+}
+
+// per-tile health + stats, once a second
+// The MV running on the RTSPmv box itself reports which tiles are NO SIGNAL,
+// so Companion can show it and trigger a reconnect/restart.
+const IS_LOCAL = ['127.0.0.1', 'localhost', '::1', '[::1]'].includes(location.hostname);
+let lastDown = '', lastReport = 0;
+function reportHealth(down) {
+  if (!IS_LOCAL) return;
+  const key = down.sort().join(',');
+  if (key === lastDown && Date.now() - lastReport < 4000) return;
+  lastDown = key; lastReport = Date.now();
+  fetch('/api/health', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ down }) }).catch(() => {});
+}
+
+setInterval(() => {
+  const down = [];
+  for (const [id, e] of Object.entries(els)) {
+    if (e.wrap.style.display === 'none') continue;
+    const v = videoOf(e.player);
+    if (v && v.controls) v.controls = false;   // no player control bar on the MV
+    const t = v ? v.currentTime : 0;
+    e.stall = (v && t !== e.lastT && v.videoWidth) ? 0 : e.stall + 1;
+    e.lastT = t;
+    e.wrap.classList.toggle('down', e.stall >= 3);
+    if (e.stall >= 3) down.push(id);
+    if (!root.classList.contains('stats') || !v) continue;
+    const q = v.getVideoPlaybackQuality ? v.getVideoPlaybackQuality() : null;
+    const frames = q ? q.totalVideoFrames : 0;
+    const fps = Math.max(0, frames - e.frames); e.frames = frames;
+    const dropped = q ? q.droppedVideoFrames : 0;
+    const cdc = (codecs[id] && codecs[id].video) || '?';
+    e.stats.innerHTML = `${cdc} ${v.videoWidth}×${v.videoHeight} ${fps}fps` +
+      (dropped ? ` <span class="bad">drop ${dropped}</span>` : '');
+  }
+  reportHealth(down);
+}, 1000);
+
+async function pollStatus() {
+  try {
+    const r = await (await fetch('/api/status')).json();
+    codecs = r.codecs || {};
+    const g = r.go2rtc;
+    setBanner(!g.binary ? 'go2rtc not found — open Settings' : !g.running ? 'Stream engine restarting…' : '');
+  } catch { setBanner('RTSPmv server unreachable'); }
+}
+setInterval(pollStatus, 5000); pollStatus();
+
+// Recovery commands (from Companion / API): reconnect one camera, or reload the whole MV
+let seenReload = null, seenReconnect = null;
+function applyRecovery() {
+  if (seenReload === null) { seenReload = S.reload_seq; seenReconnect = { ...(S.reconnect || {}) }; return false; }
+  if (S.reload_seq !== seenReload) { location.reload(); return true; }
+  for (const [id, n] of Object.entries(S.reconnect || {})) {
+    if (seenReconnect[id] === n) continue;
+    seenReconnect[id] = n;
+    const e = els[id];
+    if (e && e.player) { e.player.remove(); e.player = null; e.stall = 0; e.lastT = 0; e.frames = 0; }
+  }
+  return false;
+}
+new EventSource('/api/events').onmessage = ev => { S = JSON.parse(ev.data); if (!applyRecovery()) render(); };
+
+loadPlayer().then(() => { ready = true; render(); });
+
+// controls
+function fullscreen() {
+  if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen?.();
+}
+document.addEventListener('keydown', ev => {
+  if (ev.key === 'f' || ev.key === 'F') fullscreen();
+  if (ev.key === 's' || ev.key === 'S') { statsLocal = !root.classList.contains('stats'); render(); }
+  if (ev.key === 'g' || ev.key === 'G') location.href = '/settings';
+});
+document.addEventListener('dblclick', fullscreen);
+let idleT;
+function wake() { document.body.classList.remove('idle'); clearTimeout(idleT);
+  idleT = setTimeout(() => document.body.classList.add('idle'), 3000); }
+document.addEventListener('mousemove', wake); wake();
+</script>
+</body>
+</html>

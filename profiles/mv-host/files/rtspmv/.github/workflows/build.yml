@@ -1,0 +1,53 @@
+name: build
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            g2asset: go2rtc_win64.zip
+            exe: go2rtc.exe
+            pkg: RTSPmv-windows-x64
+          - os: ubuntu-latest
+            g2asset: go2rtc_linux_amd64
+            exe: go2rtc
+            pkg: RTSPmv-linux-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyinstaller
+
+      - name: Fetch go2rtc
+        shell: bash
+        run: |
+          mkdir -p bin
+          curl -fL "https://github.com/AlexxIT/go2rtc/releases/latest/download/${{ matrix.g2asset }}" -o "bin/${{ matrix.g2asset }}"
+          if [[ "${{ matrix.g2asset }}" == *.zip ]]; then
+            (cd bin && unzip -o "${{ matrix.g2asset }}" && rm "${{ matrix.g2asset }}")
+          else
+            mv "bin/${{ matrix.g2asset }}" "bin/${{ matrix.exe }}" && chmod +x "bin/${{ matrix.exe }}"
+          fi
+          ls -l bin
+
+      - name: Build
+        shell: bash
+        run: |
+          SEP=":"; [ "$RUNNER_OS" = "Windows" ] && SEP=";"
+          pyinstaller --noconfirm --onedir --name RTSPmv \
+            --add-data "static${SEP}static" rtspmv.py
+          mkdir -p dist/RTSPmv/bin && cp bin/* dist/RTSPmv/bin/
+          cp README.md LICENSE dist/RTSPmv/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.pkg }}
+          path: dist/RTSPmv

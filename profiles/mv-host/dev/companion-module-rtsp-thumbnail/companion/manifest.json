@@ -1,0 +1,26 @@
+{
+	"$schema": "../node_modules/@companion-module/base/assets/manifest.schema.json",
+	"type": "connection",
+	"id": "rtsp-thumbnail",
+	"name": "RTSP Thumbnail",
+	"shortname": "rtspthumb",
+	"description": "Live thumbnail from any RTSP/network video stream as a button background",
+	"version": "0.4.0",
+	"license": "MIT",
+	"repository": "",
+	"bugs": "",
+	"maintainers": [{ "name": "Samuel" }],
+	"runtime": {
+		"type": "node22",
+		"api": "nodejs-ipc",
+		"apiVersion": "0.0.0",
+		"entrypoint": "../src/main.js",
+		"permissions": {
+			"child-process": true
+		}
+	},
+	"legacyIds": [],
+	"manufacturer": "Generic",
+	"products": ["RTSP Thumbnail"],
+	"keywords": ["rtsp", "thumbnail", "video", "camera", "preview", "ffmpeg"]
+}
