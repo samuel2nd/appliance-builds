@@ -72,8 +72,15 @@ user-db:user
 system-db:local
 EOF
 
+# GDM profile (must reference gdm db for login screen settings to apply)
+cat > /etc/dconf/profile/gdm <<EOF
+user-db:user
+system-db:gdm
+system-db:local
+EOF
+
 mkdir -p /etc/dconf/db/local.d
-cat > /etc/dconf/db/local.d/00-no-sleep <<EOF
+cat > /etc/dconf/db/local.d/00-no-sleep <<'DCONF'
 [org/gnome/desktop/session]
 idle-delay=uint32 0
 
@@ -81,29 +88,33 @@ idle-delay=uint32 0
 lock-enabled=false
 idle-activation-enabled=false
 
+[org/gnome/desktop/lockdown]
+disable-lock-screen=true
+
 [org/gnome/settings-daemon/plugins/power]
-sleep-inactive-ac-type='nothing'
-sleep-inactive-battery-type='nothing'
+sleep-inactive-ac-type="nothing"
+sleep-inactive-battery-type="nothing"
 idle-dim=false
 
 [org/gnome/desktop/notifications]
 show-banners=false
-EOF
+DCONF
 
 mkdir -p /etc/dconf/db/local.d/locks
 cat > /etc/dconf/db/local.d/locks/00-no-sleep <<EOF
 /org/gnome/desktop/session/idle-delay
 /org/gnome/desktop/screensaver/lock-enabled
 /org/gnome/desktop/screensaver/idle-activation-enabled
+/org/gnome/desktop/lockdown/disable-lock-screen
 /org/gnome/settings-daemon/plugins/power/sleep-inactive-ac-type
 /org/gnome/settings-daemon/plugins/power/sleep-inactive-battery-type
 /org/gnome/settings-daemon/plugins/power/idle-dim
 /org/gnome/desktop/notifications/show-banners
 EOF
 
-# GDM login screen settings (prevent sleep while waiting for login)
+# GDM login screen settings (prevent sleep/lock while waiting for login)
 mkdir -p /etc/dconf/db/gdm.d
-cat > /etc/dconf/db/gdm.d/00-no-sleep <<EOF
+cat > /etc/dconf/db/gdm.d/00-no-sleep <<'DCONF'
 [org/gnome/desktop/session]
 idle-delay=uint32 0
 
@@ -111,10 +122,13 @@ idle-delay=uint32 0
 lock-enabled=false
 idle-activation-enabled=false
 
+[org/gnome/desktop/lockdown]
+disable-lock-screen=true
+
 [org/gnome/settings-daemon/plugins/power]
-sleep-inactive-ac-type='nothing'
+sleep-inactive-ac-type="nothing"
 idle-dim=false
-EOF
+DCONF
 
 dconf update
 echo "  dconf system profile with locks configured"

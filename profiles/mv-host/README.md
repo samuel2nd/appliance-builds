@@ -31,7 +31,7 @@ The `late_command` fetches and runs `bootstrap.sh`, which:
 
 1. **System packages:** `intel-media-va-driver`, `vainfo`, `intel-gpu-tools`, `ffmpeg`, `git`, `curl`, `python3`, `firefox-esr`
 
-2. **Sleep prevention:** Masks `sleep.target`, `suspend.target`, `hibernate.target`, `hybrid-sleep.target`; dconf system profile with locks disables screen blank, screensaver, auto-suspend, and screen lock for both user sessions and GDM login screen
+2. **Sleep/lock prevention:** Masks `sleep.target`, `suspend.target`, `hibernate.target`, `hybrid-sleep.target`; dconf system profile with locks disables screen blank, screensaver, auto-suspend, screen lock (`lock-enabled=false`), and lockdown (`disable-lock-screen=true`) for both user sessions and GDM login screen
 
 3. **GNOME autologin:** Configures GDM to auto-login as `mv` user
 
