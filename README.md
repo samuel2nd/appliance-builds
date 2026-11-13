@@ -102,6 +102,9 @@ sudo dd if=debian-13.7.0-amd64-netinst.iso of=/dev/sdX bs=4M status=progress con
 ## Notes
 
 - **Branch name:** This repo uses `master`. All raw URLs must reference `master`, not `main`.
+- **Companion tarball:** Uses `companion_headless.sh` (not `launch.sh`), downloads from `cf-pub.bitfocus.io`, extracts without `--strip-components`.
+- **Dev module permissions:** Must `chown` modules to target user before `npm install`.
+- **GitHub CDN cache:** Raw URLs may cache for ~5 minutes; copy scripts directly for immediate updates.
 
 ## Security Notes
 
