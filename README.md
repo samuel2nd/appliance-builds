@@ -54,7 +54,44 @@ appliance-builds/
 Each profile's preseed can be accessed via:
 
 - **GitHub Pages (short):** `https://samuel2nd.github.io/appliance-builds/profiles/<name>/preseed.cfg`
-- **Raw GitHub:** `https://raw.githubusercontent.com/samuel2nd/appliance-builds/main/profiles/<name>/preseed.cfg`
+- **Raw GitHub:** `https://raw.githubusercontent.com/samuel2nd/appliance-builds/master/profiles/<name>/preseed.cfg`
+
+## USB Stick Creation
+
+Download the latest Debian 13 netinst ISO and verify:
+
+```bash
+curl -LO https://cdimage.debian.org/cdimage/release/current/amd64/iso-cd/debian-13.7.0-amd64-netinst.iso
+curl -LO https://cdimage.debian.org/cdimage/release/current/amd64/iso-cd/SHA256SUMS
+sha256sum -c SHA256SUMS 2>&1 | grep netinst
+```
+
+### Writing the ISO (Windows, elevated PowerShell)
+
+1. **Identify the USB disk:**
+   ```powershell
+   Get-Disk | Select-Object Number, FriendlyName, Size, BusType | Format-Table
+   ```
+   Note the disk number (e.g., `2` for a 60 GB USB Flash Disk).
+
+2. **Clear the disk:**
+   ```powershell
+   Clear-Disk -Number 2 -RemoveData -RemoveOEM -Confirm:$false
+   ```
+
+3. **Write the ISO using Git's dd:**
+   ```powershell
+   & "C:\Program Files\Git\usr\bin\dd.exe" if=debian-13.7.0-amd64-netinst.iso of=/dev/sdc bs=4M status=progress conv=fsync
+   ```
+   Disk mapping: `/dev/sda` = Disk 0, `/dev/sdb` = Disk 1, `/dev/sdc` = Disk 2, etc.
+
+**Note:** Claude Code must run in an elevated terminal to write directly to raw disks.
+
+### Writing the ISO (Linux)
+
+```bash
+sudo dd if=debian-13.7.0-amd64-netinst.iso of=/dev/sdX bs=4M status=progress conv=fsync
+```
 
 ## Requirements
 
