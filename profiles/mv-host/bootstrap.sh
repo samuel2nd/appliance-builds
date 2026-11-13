@@ -22,7 +22,17 @@ RTSPMV_VERSION="0.4.0"
 
 MV_USER="mv"
 MV_HOME="/home/$MV_USER"
-HOSTNAME_TARGET="mv-appliance"
+
+# Site-specific config (optional) - copy site.env.example to site.env
+SITE_ENV="/tmp/site.env"
+if [ -f "$SITE_ENV" ]; then
+    echo ">>> Loading site config from $SITE_ENV"
+    # shellcheck source=/dev/null
+    source "$SITE_ENV"
+fi
+
+# Defaults (can be overridden by site.env)
+HOSTNAME_TARGET="${HOSTNAME:-mv-appliance}"
 
 # ============================================================
 # 0. Hostname

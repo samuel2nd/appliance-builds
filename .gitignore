@@ -15,3 +15,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Site-specific config (contains IPs, hostnames)
+site.env

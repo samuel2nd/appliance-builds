@@ -12,18 +12,18 @@ Unattended Debian 13 installation for a camera multiviewer appliance.
 
 ## Network Configuration
 
-The appliance uses two NICs for network segmentation:
+The appliance supports dual-NIC setup for network segmentation (management + camera VLAN).
 
 | Interface | Profile | IP Address | Purpose |
 |-----------|---------|------------|---------|
-| `enp1s0` (onboard) | Wired connection 1 | <MGMT_IP>/24 | Management (SSH, Companion UI) |
-| `<CAM_IF>` (USB) | Camera Network | <CAM_IP>/24 | Camera VLAN (Protect at <PROTECT_IP>) |
+| `<MGMT_IF>` (onboard) | Wired connection 1 | `<MGMT_IP>` | Management (SSH, Companion UI) |
+| `<CAM_IF>` (USB) | Camera Network | `<CAM_IP>` | Camera VLAN |
 
 **Post-install network setup** (not automated in bootstrap):
 
 ```bash
-# Bind management profile to onboard NIC
-sudo nmcli connection modify "Wired connection 1" connection.interface-name enp1s0
+# Bind management profile to onboard NIC (find interface name with: ip link)
+sudo nmcli connection modify "Wired connection 1" connection.interface-name <MGMT_IF>
 
 # Create camera network profile (static, never-default, no gateway)
 sudo nmcli connection add \
@@ -37,12 +37,14 @@ sudo nmcli connection add \
   connection.autoconnect yes
 
 # Disable WiFi if present
-sudo nmcli connection modify "LMG ENG" connection.autoconnect no
+sudo nmcli connection modify "<WIFI_PROFILE>" connection.autoconnect no
 
 # Activate both
 sudo nmcli connection up "Wired connection 1"
 sudo nmcli connection up "Camera Network"
 ```
+
+See `site.env.example` for site-specific configuration.
 
 ## What the Preseed Answers
 
