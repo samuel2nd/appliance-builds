@@ -88,7 +88,7 @@ COMPANION_DIR="/opt/companion"
 COMPANION_TAR="companion-linux-x64-${COMPANION_VERSION}-${COMPANION_BUILD}-stable-${COMPANION_HASH}.tar.gz"
 COMPANION_URL="https://cf-pub.bitfocus.io/companion/companion/$COMPANION_TAR"
 
-if [ ! -f "$COMPANION_DIR/launch.sh" ]; then
+if [ ! -f "$COMPANION_DIR/companion_headless.sh" ]; then
     echo "  Downloading Companion from $COMPANION_URL..."
     cd /tmp
     rm -f "$COMPANION_TAR"
@@ -100,14 +100,16 @@ if [ ! -f "$COMPANION_DIR/launch.sh" ]; then
     echo "  Extracting to $COMPANION_DIR..."
     rm -rf "$COMPANION_DIR"
     mkdir -p "$COMPANION_DIR"
-    tar -xzf "$COMPANION_TAR" -C "$COMPANION_DIR" --strip-components=1
+    # tarball has no top-level folder, extract directly
+    tar -xzf "$COMPANION_TAR" -C "$COMPANION_DIR"
     rm -f "$COMPANION_TAR"
 
-    [ -f "$COMPANION_DIR/launch.sh" ] || {
-        echo "FATAL: Companion extraction failed - launch.sh not found"
+    [ -f "$COMPANION_DIR/companion_headless.sh" ] || {
+        echo "FATAL: Companion extraction failed - companion_headless.sh not found"
+        ls -la "$COMPANION_DIR"
         exit 1
     }
-    chmod +x "$COMPANION_DIR/launch.sh"
+    chmod +x "$COMPANION_DIR/companion_headless.sh"
     echo "  Companion extracted"
 else
     echo "  Companion already installed"
@@ -124,7 +126,7 @@ Wants=network-online.target
 Type=simple
 User=$MV_USER
 Environment=COMPANION_DEV_MODULES=$MV_HOME/dev
-ExecStart=$COMPANION_DIR/launch.sh headless
+ExecStart=$COMPANION_DIR/companion_headless.sh
 Restart=always
 RestartSec=5
 
