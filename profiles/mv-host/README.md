@@ -8,7 +8,41 @@ Unattended Debian 13 installation for a camera multiviewer appliance.
 - **CPU:** Intel Core i5-6500T (Skylake, supports Quick Sync / VAAPI)
 - **RAM:** 8 GB
 - **Storage:** 256 GB SATA SSD (`/dev/sda`)
-- **Network:** Wired Ethernet (DHCP)
+- **Network:** Onboard NIC + USB Ethernet adapter (dual-homed)
+
+## Network Configuration
+
+The appliance uses two NICs for network segmentation:
+
+| Interface | Profile | IP Address | Purpose |
+|-----------|---------|------------|---------|
+| `enp1s0` (onboard) | Wired connection 1 | <MGMT_IP>/24 | Management (SSH, Companion UI) |
+| `<CAM_IF>` (USB) | Camera Network | <CAM_IP>/24 | Camera VLAN (Protect at <PROTECT_IP>) |
+
+**Post-install network setup** (not automated in bootstrap):
+
+```bash
+# Bind management profile to onboard NIC
+sudo nmcli connection modify "Wired connection 1" connection.interface-name enp1s0
+
+# Create camera network profile (static, never-default, no gateway)
+sudo nmcli connection add \
+  con-name "Camera Network" \
+  type ethernet \
+  ifname <CAM_IF> \
+  ipv4.method manual \
+  ipv4.addresses <CAM_IP>/24 \
+  ipv4.never-default yes \
+  ipv6.method disabled \
+  connection.autoconnect yes
+
+# Disable WiFi if present
+sudo nmcli connection modify "LMG ENG" connection.autoconnect no
+
+# Activate both
+sudo nmcli connection up "Wired connection 1"
+sudo nmcli connection up "Camera Network"
+```
 
 ## What the Preseed Answers
 
