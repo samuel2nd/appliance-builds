@@ -5,18 +5,33 @@ set -euo pipefail
 
 LOG="/var/log/bootstrap.log"
 exec > >(tee -a "$LOG") 2>&1
+
+# Fail loudly on any error
+trap 'echo "FATAL: Command failed at line $LINENO: $BASH_COMMAND" >&2; exit 1' ERR
+
 echo "=== Bootstrap started: $(date -Iseconds) ==="
 
 # Pinned versions
 COMPANION_VERSION="5.0.1"
+COMPANION_BUILD="9649"
+COMPANION_HASH="6acd549dd5"
 NODE_VERSION="22"
 GO2RTC_VERSION="v1.9.15"
 GO2RTC_SHA256="20b46c6910734cb05ecefb234066f36868ff19b42ba1418a7a32e13a3e035712"
 RTSPMV_VERSION="0.4.0"
 
-REPO_BASE="https://raw.githubusercontent.com/samuel2nd/appliance-builds/master/profiles/mv-host"
 MV_USER="mv"
 MV_HOME="/home/$MV_USER"
+HOSTNAME_TARGET="mv-appliance"
+
+# ============================================================
+# 0. Hostname
+# ============================================================
+echo ">>> Setting hostname to $HOSTNAME_TARGET..."
+hostnamectl set-hostname "$HOSTNAME_TARGET"
+sed -i "s/127.0.1.1.*/127.0.1.1\t$HOSTNAME_TARGET/" /etc/hosts || \
+    echo -e "127.0.1.1\t$HOSTNAME_TARGET" >> /etc/hosts
+echo "  Hostname set to $(hostname)"
 
 # ============================================================
 # 1. System packages
@@ -42,9 +57,11 @@ if [ -n "$GDM_CONF" ]; then
     sed -i '/^AutomaticLoginEnable/d; /^AutomaticLogin[[:space:]]*=/d' "$GDM_CONF"
     sed -i "/^\[daemon\]/a AutomaticLoginEnable = true\nAutomaticLogin = $MV_USER" "$GDM_CONF"
     echo "  GDM autologin configured in $GDM_CONF"
+else
+    echo "  WARNING: GDM config not found"
 fi
 
-# GNOME settings (run as mv user)
+# GNOME settings (run as mv user) - these can fail if no display
 sudo -u "$MV_USER" dbus-launch gsettings set org.gnome.desktop.session idle-delay 0 2>/dev/null || true
 sudo -u "$MV_USER" dbus-launch gsettings set org.gnome.desktop.screensaver lock-enabled false 2>/dev/null || true
 sudo -u "$MV_USER" dbus-launch gsettings set org.gnome.desktop.screensaver idle-activation-enabled false 2>/dev/null || true
@@ -58,25 +75,42 @@ echo "  GNOME power/screensaver settings applied"
 # ============================================================
 echo ">>> Installing Node.js $NODE_VERSION..."
 if ! command -v node >/dev/null || ! node -v | grep -q "v$NODE_VERSION"; then
-    curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash -
+    curl -fsSL "https://deb.nodesource.com/setup_${NODE_VERSION}.x" | bash -
     apt-get install -y nodejs
 fi
 echo "  Node.js $(node -v) installed"
 
 # ============================================================
-# 4. Bitfocus Companion
+# 4. Bitfocus Companion (tar.gz from CDN)
 # ============================================================
 echo ">>> Installing Bitfocus Companion $COMPANION_VERSION..."
 COMPANION_DIR="/opt/companion"
-COMPANION_DEB="companion-${COMPANION_VERSION}-linux-x64.deb"
+COMPANION_TAR="companion-linux-x64-${COMPANION_VERSION}-${COMPANION_BUILD}-stable-${COMPANION_HASH}.tar.gz"
+COMPANION_URL="https://cf-pub.bitfocus.io/companion/companion/$COMPANION_TAR"
 
-if [ ! -d "$COMPANION_DIR" ] || ! "$COMPANION_DIR/node-runtime/bin/node" -v 2>/dev/null | grep -q "v22"; then
+if [ ! -f "$COMPANION_DIR/launch.sh" ]; then
+    echo "  Downloading Companion from $COMPANION_URL..."
     cd /tmp
-    if [ ! -f "$COMPANION_DEB" ]; then
-        wget -q "https://releases.bitfocus.io/companion/v${COMPANION_VERSION}/${COMPANION_DEB}"
-    fi
-    dpkg -i "$COMPANION_DEB" || apt-get install -f -y
-    rm -f "$COMPANION_DEB"
+    rm -f "$COMPANION_TAR"
+    wget --progress=dot:giga "$COMPANION_URL" || {
+        echo "FATAL: Failed to download Companion"
+        exit 1
+    }
+
+    echo "  Extracting to $COMPANION_DIR..."
+    rm -rf "$COMPANION_DIR"
+    mkdir -p "$COMPANION_DIR"
+    tar -xzf "$COMPANION_TAR" -C "$COMPANION_DIR" --strip-components=1
+    rm -f "$COMPANION_TAR"
+
+    [ -f "$COMPANION_DIR/launch.sh" ] || {
+        echo "FATAL: Companion extraction failed - launch.sh not found"
+        exit 1
+    }
+    chmod +x "$COMPANION_DIR/launch.sh"
+    echo "  Companion extracted"
+else
+    echo "  Companion already installed"
 fi
 
 # Companion systemd service (runs as mv user)
@@ -90,7 +124,7 @@ Wants=network-online.target
 Type=simple
 User=$MV_USER
 Environment=COMPANION_DEV_MODULES=$MV_HOME/dev
-ExecStart=/opt/companion/launch.sh headless
+ExecStart=$COMPANION_DIR/launch.sh headless
 Restart=always
 RestartSec=5
 
@@ -100,7 +134,7 @@ EOF
 
 systemctl daemon-reload
 systemctl enable companion.service
-echo "  Companion $COMPANION_VERSION installed"
+echo "  Companion $COMPANION_VERSION service configured"
 
 # ============================================================
 # 5. Companion dev modules (clone from repo)
@@ -109,21 +143,33 @@ echo ">>> Setting up Companion dev modules..."
 mkdir -p "$MV_HOME/dev"
 
 REPO_CLONE="/tmp/appliance-builds"
-if [ ! -d "$REPO_CLONE" ]; then
-    git clone --depth 1 https://github.com/samuel2nd/appliance-builds.git "$REPO_CLONE"
-fi
+rm -rf "$REPO_CLONE"
+echo "  Cloning repo..."
+git clone --depth 1 https://github.com/samuel2nd/appliance-builds.git "$REPO_CLONE" || {
+    echo "FATAL: Failed to clone repo"
+    exit 1
+}
 
 DEV_MODULES="cobalt-9905-color-corrector companion-module-rtspmv companion-module-rtsp-thumbnail"
 for mod in $DEV_MODULES; do
     SRC_DIR="$REPO_CLONE/profiles/mv-host/dev/$mod"
     DST_DIR="$MV_HOME/dev/$mod"
-    if [ -d "$SRC_DIR" ] && [ ! -d "$DST_DIR" ]; then
-        cp -r "$SRC_DIR" "$DST_DIR"
-    fi
-    if [ -f "$DST_DIR/package.json" ] && [ ! -d "$DST_DIR/node_modules" ]; then
-        echo "  npm ci for $mod..."
+
+    [ -d "$SRC_DIR" ] || {
+        echo "FATAL: Module source not found: $SRC_DIR"
+        exit 1
+    }
+
+    rm -rf "$DST_DIR"
+    cp -r "$SRC_DIR" "$DST_DIR"
+
+    if [ -f "$DST_DIR/package.json" ]; then
+        echo "  npm install for $mod..."
         cd "$DST_DIR"
-        sudo -u "$MV_USER" npm ci --omit=dev 2>/dev/null || sudo -u "$MV_USER" npm install --omit=dev
+        sudo -u "$MV_USER" npm install --omit=dev || {
+            echo "FATAL: npm install failed for $mod"
+            exit 1
+        }
     fi
 done
 chown -R "$MV_USER:$MV_USER" "$MV_HOME/dev"
@@ -138,21 +184,28 @@ mkdir -p "$RTSPMV_DIR/bin"
 
 # Copy rtspmv files from cloned repo
 RTSPMV_SRC="$REPO_CLONE/profiles/mv-host/files/rtspmv"
-if [ ! -f "$RTSPMV_DIR/rtspmv.py" ] && [ -d "$RTSPMV_SRC" ]; then
-    cp "$RTSPMV_SRC/rtspmv.py" "$RTSPMV_DIR/"
-    cp "$RTSPMV_SRC/LICENSE" "$RTSPMV_DIR/"
-    cp -r "$RTSPMV_SRC/static" "$RTSPMV_DIR/"
-    cp "$RTSPMV_SRC/linux/rtspmv.svg" "$RTSPMV_DIR/" 2>/dev/null || true
-fi
+[ -d "$RTSPMV_SRC" ] || {
+    echo "FATAL: RTSPmv source not found: $RTSPMV_SRC"
+    exit 1
+}
+
+cp "$RTSPMV_SRC/rtspmv.py" "$RTSPMV_DIR/"
+cp "$RTSPMV_SRC/LICENSE" "$RTSPMV_DIR/"
+rm -rf "$RTSPMV_DIR/static"
+cp -r "$RTSPMV_SRC/static" "$RTSPMV_DIR/"
+cp "$RTSPMV_SRC/linux/rtspmv.svg" "$RTSPMV_DIR/" 2>/dev/null || true
 
 # Download go2rtc with checksum verification
 if [ ! -x "$RTSPMV_DIR/bin/go2rtc" ]; then
     echo "  Downloading go2rtc $GO2RTC_VERSION..."
     curl -fsSL "https://github.com/AlexxIT/go2rtc/releases/download/$GO2RTC_VERSION/go2rtc_linux_amd64" \
-        -o "$RTSPMV_DIR/bin/go2rtc.tmp"
+        -o "$RTSPMV_DIR/bin/go2rtc.tmp" || {
+        echo "FATAL: Failed to download go2rtc"
+        exit 1
+    }
     ACTUAL_SHA256=$(sha256sum "$RTSPMV_DIR/bin/go2rtc.tmp" | cut -d' ' -f1)
     if [ "$ACTUAL_SHA256" != "$GO2RTC_SHA256" ]; then
-        echo "ERROR: go2rtc checksum mismatch!"
+        echo "FATAL: go2rtc checksum mismatch!"
         echo "  Expected: $GO2RTC_SHA256"
         echo "  Got:      $ACTUAL_SHA256"
         rm -f "$RTSPMV_DIR/bin/go2rtc.tmp"
@@ -161,6 +214,8 @@ if [ ! -x "$RTSPMV_DIR/bin/go2rtc" ]; then
     mv "$RTSPMV_DIR/bin/go2rtc.tmp" "$RTSPMV_DIR/bin/go2rtc"
     chmod +x "$RTSPMV_DIR/bin/go2rtc"
     echo "  go2rtc checksum verified"
+else
+    echo "  go2rtc already installed"
 fi
 
 chown -R "$MV_USER:$MV_USER" "$RTSPMV_DIR"
@@ -185,8 +240,9 @@ EOF
 
 chown -R "$MV_USER:$MV_USER" "$MV_HOME/.config"
 
-# Enable user service (requires user session)
-sudo -u "$MV_USER" bash -c "systemctl --user daemon-reload && systemctl --user enable rtspmv.service" 2>/dev/null || true
+# Enable user service
+sudo -u "$MV_USER" XDG_RUNTIME_DIR="/run/user/$(id -u $MV_USER)" systemctl --user daemon-reload 2>/dev/null || true
+sudo -u "$MV_USER" XDG_RUNTIME_DIR="/run/user/$(id -u $MV_USER)" systemctl --user enable rtspmv.service 2>/dev/null || true
 echo "  RTSPmv installed"
 
 # ============================================================
@@ -235,14 +291,22 @@ fi
 # 9. Final
 # ============================================================
 echo ">>> Starting services..."
-systemctl start companion.service || true
+systemctl start companion.service || {
+    echo "WARNING: Failed to start companion.service (may need reboot)"
+}
 
 # Enable lingering for mv user (user services start at boot)
-loginctl enable-linger "$MV_USER" 2>/dev/null || true
+loginctl enable-linger "$MV_USER" || {
+    echo "WARNING: Failed to enable linger for $MV_USER"
+}
+
+# Clean up
+rm -rf "$REPO_CLONE"
 
 echo ""
 echo "=== Bootstrap completed: $(date -Iseconds) ==="
 echo ""
+echo "Hostname: $(hostname)"
 echo "Pinned versions:"
 echo "  Companion: $COMPANION_VERSION"
 echo "  Node.js:   $(node -v)"
