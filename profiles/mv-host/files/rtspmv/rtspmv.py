@@ -494,6 +494,7 @@ class Go2rtc:
             f'  username: "{self.api_user}"',
             f'  password: "{self.api_pass}"',
             "  local_auth: true",
+            '  origin: "*"',
             "rtsp:",
             '  listen: ""',
             "rtmp:",
