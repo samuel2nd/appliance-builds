@@ -164,6 +164,7 @@ for mod in $DEV_MODULES; do
 
     rm -rf "$DST_DIR"
     cp -r "$SRC_DIR" "$DST_DIR"
+    chown -R "$MV_USER:$MV_USER" "$DST_DIR"
 
     if [ -f "$DST_DIR/package.json" ]; then
         echo "  npm install for $mod..."
@@ -174,7 +175,6 @@ for mod in $DEV_MODULES; do
         }
     fi
 done
-chown -R "$MV_USER:$MV_USER" "$MV_HOME/dev"
 echo "  Dev modules installed"
 
 # ============================================================
