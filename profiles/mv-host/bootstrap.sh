@@ -44,8 +44,12 @@ apt-get install -y \
     python3 firefox-esr
 
 # ============================================================
-# 2. GNOME settings: autologin, no blank, no suspend
+# 2. Disable sleep/suspend and configure GNOME autologin
 # ============================================================
+echo ">>> Disabling sleep/suspend at systemd level..."
+systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
+echo "  Sleep targets masked"
+
 echo ">>> Configuring GNOME autologin and power settings..."
 
 # GDM autologin
@@ -61,14 +65,59 @@ else
     echo "  WARNING: GDM config not found"
 fi
 
-# GNOME settings (run as mv user) - these can fail if no display
-sudo -u "$MV_USER" dbus-launch gsettings set org.gnome.desktop.session idle-delay 0 2>/dev/null || true
-sudo -u "$MV_USER" dbus-launch gsettings set org.gnome.desktop.screensaver lock-enabled false 2>/dev/null || true
-sudo -u "$MV_USER" dbus-launch gsettings set org.gnome.desktop.screensaver idle-activation-enabled false 2>/dev/null || true
-sudo -u "$MV_USER" dbus-launch gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type nothing 2>/dev/null || true
-sudo -u "$MV_USER" dbus-launch gsettings set org.gnome.settings-daemon.plugins.power idle-dim false 2>/dev/null || true
-sudo -u "$MV_USER" dbus-launch gsettings set org.gnome.desktop.notifications show-banners false 2>/dev/null || true
-echo "  GNOME power/screensaver settings applied"
+# dconf system profile with locks (applies to all users, cannot be overridden)
+mkdir -p /etc/dconf/profile
+cat > /etc/dconf/profile/user <<EOF
+user-db:user
+system-db:local
+EOF
+
+mkdir -p /etc/dconf/db/local.d
+cat > /etc/dconf/db/local.d/00-no-sleep <<EOF
+[org/gnome/desktop/session]
+idle-delay=uint32 0
+
+[org/gnome/desktop/screensaver]
+lock-enabled=false
+idle-activation-enabled=false
+
+[org/gnome/settings-daemon/plugins/power]
+sleep-inactive-ac-type='nothing'
+sleep-inactive-battery-type='nothing'
+idle-dim=false
+
+[org/gnome/desktop/notifications]
+show-banners=false
+EOF
+
+mkdir -p /etc/dconf/db/local.d/locks
+cat > /etc/dconf/db/local.d/locks/00-no-sleep <<EOF
+/org/gnome/desktop/session/idle-delay
+/org/gnome/desktop/screensaver/lock-enabled
+/org/gnome/desktop/screensaver/idle-activation-enabled
+/org/gnome/settings-daemon/plugins/power/sleep-inactive-ac-type
+/org/gnome/settings-daemon/plugins/power/sleep-inactive-battery-type
+/org/gnome/settings-daemon/plugins/power/idle-dim
+/org/gnome/desktop/notifications/show-banners
+EOF
+
+# GDM login screen settings (prevent sleep while waiting for login)
+mkdir -p /etc/dconf/db/gdm.d
+cat > /etc/dconf/db/gdm.d/00-no-sleep <<EOF
+[org/gnome/desktop/session]
+idle-delay=uint32 0
+
+[org/gnome/desktop/screensaver]
+lock-enabled=false
+idle-activation-enabled=false
+
+[org/gnome/settings-daemon/plugins/power]
+sleep-inactive-ac-type='nothing'
+idle-dim=false
+EOF
+
+dconf update
+echo "  dconf system profile with locks configured"
 
 # ============================================================
 # 3. Node.js (for Companion)

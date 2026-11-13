@@ -31,24 +31,26 @@ The `late_command` fetches and runs `bootstrap.sh`, which:
 
 1. **System packages:** `intel-media-va-driver`, `vainfo`, `intel-gpu-tools`, `ffmpeg`, `git`, `curl`, `python3`, `firefox-esr`
 
-2. **GNOME settings:** Autologin for `mv`, screen blank disabled, screensaver disabled, suspend disabled, notifications disabled
+2. **Sleep prevention:** Masks `sleep.target`, `suspend.target`, `hibernate.target`, `hybrid-sleep.target`; dconf system profile with locks disables screen blank, screensaver, auto-suspend, and screen lock for both user sessions and GDM login screen
 
-3. **Node.js 22:** From NodeSource repository
+3. **GNOME autologin:** Configures GDM to auto-login as `mv` user
 
-4. **Bitfocus Companion 5.0.1:** Installed to `/opt/companion`, runs as systemd service with `COMPANION_DEV_MODULES=/home/mv/dev`
+4. **Node.js 22:** From NodeSource repository
 
-5. **Companion dev modules:** Installed to `/home/mv/dev/`:
+5. **Bitfocus Companion 5.0.1:** Installed to `/opt/companion`, runs as systemd service with `COMPANION_DEV_MODULES=/home/mv/dev`
+
+6. **Companion dev modules:** Installed to `/home/mv/dev/`:
    - `cobalt-9905-color-corrector` v2.1.1
    - `companion-module-rtspmv` v0.2.0
    - `companion-module-rtsp-thumbnail` v0.4.0
 
-6. **RTSPmv 0.4.0:** Installed to `/home/mv/.local/share/rtspmv`, runs as systemd user service
+7. **RTSPmv 0.4.0:** Installed to `/home/mv/.local/share/rtspmv`, runs as systemd user service
 
-7. **go2rtc v1.9.15:** Downloaded with SHA256 verification: `20b46c6910734cb05ecefb234066f36868ff19b42ba1418a7a32e13a3e035712`
+8. **go2rtc v1.9.15:** Downloaded with SHA256 verification: `20b46c6910734cb05ecefb234066f36868ff19b42ba1418a7a32e13a3e035712`
 
-8. **MV autostart:** Firefox ESR kiosk mode with VAAPI hardware decode, opens `http://127.0.0.1:8090/mv` at login
+9. **MV autostart:** Firefox ESR kiosk mode with VAAPI hardware decode, opens `http://127.0.0.1:8090/mv` at login; GNOME application launchers for RTSPmv
 
-9. **Firewall (if ufw active):** Opens ports 8090 (RTSPmv), 8555 (WebRTC), 8000 (Companion)
+10. **Firewall (if ufw active):** Opens ports 8090 (RTSPmv), 8555 (WebRTC), 8000 (Companion)
 
 ## Pinned Versions
 
