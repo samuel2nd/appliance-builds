@@ -80,7 +80,7 @@ The `late_command` fetches and runs `bootstrap.sh`, which:
 
 7. **RTSPmv 0.4.0:** Installed to `/home/mv/.local/share/rtspmv`, runs as systemd user service
 
-8. **go2rtc v1.9.15:** Downloaded with SHA256 verification: `20b46c6910734cb05ecefb234066f36868ff19b42ba1418a7a32e13a3e035712`; RTSPmv configures go2rtc with `origin: "*"` to allow WebSocket connections from the browser
+8. **go2rtc v1.9.15:** Downloaded with SHA256 verification: `20b46c6910734cb05ecefb234066f36868ff19b42ba1418a7a32e13a3e035712`; RTSPmv configures go2rtc with restricted `origin` (127.0.0.1/localhost only) to allow WebSocket connections from the browser. Note: Kamrui runs RTSPmv 0.3.0 which doesn't require the origin fix
 
 9. **MV autostart:** Firefox ESR kiosk mode with VAAPI hardware decode, opens `http://127.0.0.1:8090/mv` at login; GNOME application launchers for RTSPmv
 
