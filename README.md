@@ -56,12 +56,45 @@ Each profile's preseed can be accessed via:
 - **GitHub Pages (short):** `https://samuel2nd.github.io/appliance-builds/profiles/<name>/preseed.cfg`
 - **Raw GitHub:** `https://raw.githubusercontent.com/samuel2nd/appliance-builds/master/profiles/<name>/preseed.cfg`
 
-## USB Stick Creation
+## Custom ISO with Preseed Baked In
+
+Instead of manually selecting "Advanced options > Automated install" and typing the preseed URL, build a custom ISO with your profile's preseed URL baked in. The boot menu will default to "Install mv-host (automated)" with a 5-second timeout.
+
+### Building the Custom ISO (Linux)
+
+```bash
+# Install dependencies
+sudo apt install xorriso isolinux syslinux-utils
+
+# Download Debian 13 netinst
+curl -LO https://cdimage.debian.org/cdimage/release/current/amd64/iso-cd/debian-13.0.0-amd64-netinst.iso
+
+# Build custom ISO for your profile
+./tools/build-iso.sh mv-host debian-13.0.0-amd64-netinst.iso
+
+# Output: debian-mv-host-netinst.iso
+```
+
+The script adds a GRUB/isolinux menu entry with `auto=true priority=critical url=<preseed-url>` baked in.
+
+### Regenerating for a Different Profile
+
+```bash
+# Clone the profile first
+cp -r profiles/mv-host profiles/new-profile
+# Edit new-profile/preseed.cfg and bootstrap.sh with new URLs
+# Then build:
+./tools/build-iso.sh new-profile debian-13.0.0-amd64-netinst.iso
+```
+
+## Stock USB Stick (Manual Preseed Entry)
+
+If you don't want to build a custom ISO, use the stock Debian netinst and enter the preseed URL manually.
 
 Download the latest Debian 13 netinst ISO and verify:
 
 ```bash
-curl -LO https://cdimage.debian.org/cdimage/release/current/amd64/iso-cd/debian-13.7.0-amd64-netinst.iso
+curl -LO https://cdimage.debian.org/cdimage/release/current/amd64/iso-cd/debian-13.0.0-amd64-netinst.iso
 curl -LO https://cdimage.debian.org/cdimage/release/current/amd64/iso-cd/SHA256SUMS
 sha256sum -c SHA256SUMS 2>&1 | grep netinst
 ```
@@ -81,7 +114,7 @@ sha256sum -c SHA256SUMS 2>&1 | grep netinst
 
 3. **Write the ISO using Git's dd:**
    ```powershell
-   & "C:\Program Files\Git\usr\bin\dd.exe" if=debian-13.7.0-amd64-netinst.iso of=/dev/sdc bs=4M status=progress conv=fsync
+   & "C:\Program Files\Git\usr\bin\dd.exe" if=debian-13.0.0-amd64-netinst.iso of=/dev/sdc bs=4M status=progress conv=fsync
    ```
    Disk mapping: `/dev/sda` = Disk 0, `/dev/sdb` = Disk 1, `/dev/sdc` = Disk 2, etc.
 
@@ -90,7 +123,7 @@ sha256sum -c SHA256SUMS 2>&1 | grep netinst
 ### Writing the ISO (Linux)
 
 ```bash
-sudo dd if=debian-13.7.0-amd64-netinst.iso of=/dev/sdX bs=4M status=progress conv=fsync
+sudo dd if=debian-13.0.0-amd64-netinst.iso of=/dev/sdX bs=4M status=progress conv=fsync
 ```
 
 ## Requirements

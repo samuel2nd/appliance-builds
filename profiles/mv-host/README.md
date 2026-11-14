@@ -138,6 +138,159 @@ The `late_command` fetches and runs `bootstrap.sh`, which:
 4. Enter password for `mv` user when prompted
 5. Wait for installation and reboot
 
+## Testing in a VM Before Using the Stick
+
+Every `bootstrap.sh` change should be tested in a Debian 13 VM before deploying to hardware. This catches script errors without burning time on physical installs.
+
+### Quick VM Test (QEMU)
+
+```bash
+# Create a 20GB disk image
+qemu-img create -f qcow2 test-vm.qcow2 20G
+
+# Boot from ISO with preseed URL on kernel command line
+qemu-system-x86_64 \
+  -enable-kvm \
+  -m 4096 \
+  -smp 2 \
+  -hda test-vm.qcow2 \
+  -cdrom debian-13.0.0-amd64-netinst.iso \
+  -boot d \
+  -net nic -net user \
+  -append "auto=true priority=critical url=https://samuel2nd.github.io/appliance-builds/profiles/mv-host/preseed.cfg"
+```
+
+### VirtualBox Test
+
+1. Create a new VM: Debian 64-bit, 4GB RAM, 20GB disk
+2. Attach the custom ISO (or stock netinst)
+3. If using stock ISO: at boot menu, press Tab/e to edit boot options, append:
+   ```
+   auto=true priority=critical url=https://samuel2nd.github.io/appliance-builds/profiles/mv-host/preseed.cfg
+   ```
+4. Watch the install; check `/var/log/installer/syslog` if it fails
+
+### What to Verify
+
+- [ ] Preseed URL fetched successfully (no 404)
+- [ ] Bootstrap script downloads and runs
+- [ ] All apt packages install without errors
+- [ ] Companion service starts (`systemctl status companion`)
+- [ ] Dev modules appear in Companion UI
+- [ ] RTSPmv service starts (`systemctl --user status rtspmv`)
+- [ ] Autologin works (no login prompt at boot)
+- [ ] Screen doesn't lock or blank
+
+### Testing Bootstrap Changes Without Full Reinstall
+
+For iterating on `bootstrap.sh` without reinstalling:
+
+```bash
+# On the VM, re-run bootstrap after editing
+curl -fsSL https://raw.githubusercontent.com/samuel2nd/appliance-builds/master/profiles/mv-host/bootstrap.sh -o /tmp/bootstrap.sh
+chmod +x /tmp/bootstrap.sh
+sudo /tmp/bootstrap.sh
+```
+
+Note: Some changes (partitioning, user creation) only apply during initial install.
+
+## Lessons from the First Install
+
+Issues encountered during the first Dell OptiPlex deployment and their fixes:
+
+### 1. Wrong Boot Menu Choice
+
+**Problem:** Selected "Install" instead of "Advanced options > Automated install". The preseed URL prompt only appears in automated mode.
+
+**Fix:** Use the custom ISO with preseed baked in, or remember: Advanced options > Automated install.
+
+### 2. main vs master Branch URL
+
+**Problem:** Preseed `late_command` referenced `main` branch, but this repo uses `master`. Bootstrap script 404'd.
+
+**Fix:** All raw GitHub URLs must use `master`:
+```
+https://raw.githubusercontent.com/samuel2nd/appliance-builds/master/profiles/mv-host/bootstrap.sh
+```
+
+### 3. Silent Companion Failure (COMPANION_DEV_MODULES)
+
+**Problem:** Dev modules didn't appear in Companion. No error in logs. The `COMPANION_DEV_MODULES` environment variable is broken in Companion 5.x.
+
+**Fix:** Use `--extra-module-path` CLI argument instead:
+```bash
+ExecStart=/opt/companion/.../node main.js --extra-module-path /home/mv/dev
+```
+
+### 4. Companion Version Mismatch
+
+**Problem:** Bootstrap installed Companion 5.0.1, but production config was exported from 5.0.7. Config import failed or behaved unexpectedly.
+
+**Fix:** Pin Companion version to match production (5.0.7). The tarball structure also changed (5.0.7 has a `companion-x64` subfolder that must be moved).
+
+### 5. @companion-module/base Version (Cobalt Module)
+
+**Problem:** Cobalt module showed "Incompatible module version" errors. The manifest has `apiVersion: "0.0.0"` which makes base report its own version as the API version. npm installed base 1.15.1, which Companion 5.0.7 rejected.
+
+**Fix:** Pin `@companion-module/base` to exact version `1.14.1` in package.json (not caret `^1.12.0`).
+
+### 6. Missing GNOME Application Launchers
+
+**Problem:** RTSPmv and Companion desktop launchers weren't created, making it hard to restart apps from the GUI.
+
+**Fix:** Bootstrap now creates `.desktop` files in `/home/mv/.local/share/applications/`.
+
+### 7. Screen Lock Despite dconf Settings
+
+**Problem:** Screen still locked after idle. User-level dconf settings weren't enough; GDM also needed configuration.
+
+**Fix:** Configure both user dconf profile AND GDM dconf profile:
+```bash
+# User session
+/etc/dconf/db/local.d/00-mv-settings
+/etc/dconf/db/local.d/locks/mv-settings
+
+# GDM login screen
+/etc/dconf/db/gdm.d/00-mv-settings
+/etc/dconf/db/gdm.d/locks/mv-settings
+```
+
+### 8. NIC Profile Not Bound to Interface
+
+**Problem:** "Wired connection 1" profile existed but wasn't bound to a specific interface. On a dual-NIC system, NetworkManager might assign it to either NIC unpredictably.
+
+**Fix:** Explicitly bind profiles to interface names:
+```bash
+nmcli connection modify "Wired connection 1" connection.interface-name <MGMT_IF>
+```
+
+### 9. IP Conflict / Wrong NIC as Default Route
+
+**Problem:** Management NIC (no internet) became default route. Appliance couldn't reach the internet for package downloads or camera streams.
+
+**Fix:** Camera NIC must have gateway and be the default route. Management NIC must have `ipv4.never-default yes` and no gateway:
+```bash
+# Camera NIC (USB): default route
+ipv4.gateway <CAM_GATEWAY>
+ipv4.never-default no
+
+# Management NIC (onboard): local only
+ipv4.gateway ""
+ipv4.never-default yes
+```
+
+### 10. go2rtc WebSocket Origin Rejection
+
+**Problem:** Browser WebSocket connections to go2rtc failed. go2rtc 1.9.x added origin checking that rejected requests from `http://127.0.0.1:8090`.
+
+**Fix:** RTSPmv 0.4.0 configures go2rtc with `origin: "127.0.0.1 localhost"` to allow local browser connections.
+
+### 11. No Internet on Management LAN
+
+**Problem:** Management network has no gateway. Tried to install packages over this network and failed.
+
+**Fix:** Ensure camera NIC (with internet) is connected and configured as default route before running any commands that need network access.
+
 ## Verification
 
 After first boot:
