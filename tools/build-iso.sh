@@ -105,20 +105,20 @@ menuentry 'Install $PROFILE (automated)' --hotkey=a {
 }
 GRUBEOF
 
-    # Insert after first menuentry line using awk
+    # Insert custom entry at the beginning, right after 'submenu' or first 'menuentry'
+    # Make it the FIRST entry so default=0 works
     awk -v entry="$(cat "$WORK_DIR/grub-entry.txt")" '
-        /^menuentry .Install/ && !inserted {
-            print
+        /^menuentry/ && !inserted {
             print entry
+            print ""
             inserted=1
-            next
         }
         {print}
     ' "$GRUB_CFG" > "$WORK_DIR/grub.cfg.new"
     mv "$WORK_DIR/grub.cfg.new" "$GRUB_CFG"
 
-    # Set as default (0-indexed, our entry becomes second)
-    sed -i 's/set default=.*/set default=1/' "$GRUB_CFG"
+    # Set as default (0-indexed, our entry is now first)
+    sed -i 's/set default=.*/set default=0/' "$GRUB_CFG"
     sed -i 's/set timeout=.*/set timeout=5/' "$GRUB_CFG"
 fi
 
