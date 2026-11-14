@@ -12,9 +12,9 @@ trap 'echo "FATAL: Command failed at line $LINENO: $BASH_COMMAND" >&2; exit 1' E
 echo "=== Bootstrap started: $(date -Iseconds) ==="
 
 # Pinned versions
-COMPANION_VERSION="5.0.1"
-COMPANION_BUILD="9649"
-COMPANION_HASH="6acd549dd5"
+COMPANION_VERSION="5.0.7"
+COMPANION_BUILD="9763"
+COMPANION_HASH="cec2f88e6f"
 NODE_VERSION="22"
 GO2RTC_VERSION="v1.9.15"
 GO2RTC_SHA256="20b46c6910734cb05ecefb234066f36868ff19b42ba1418a7a32e13a3e035712"
@@ -176,9 +176,15 @@ if [ ! -f "$COMPANION_DIR/companion_headless.sh" ]; then
     echo "  Extracting to $COMPANION_DIR..."
     rm -rf "$COMPANION_DIR"
     mkdir -p "$COMPANION_DIR"
-    # tarball has no top-level folder, extract directly
+    # 5.0.7+ tarball has companion-x64 top-level folder
     tar -xzf "$COMPANION_TAR" -C "$COMPANION_DIR"
     rm -f "$COMPANION_TAR"
+
+    # Move contents if extracted into subfolder
+    if [ -d "$COMPANION_DIR/companion-x64" ]; then
+        mv "$COMPANION_DIR/companion-x64"/* "$COMPANION_DIR"/
+        rmdir "$COMPANION_DIR/companion-x64"
+    fi
 
     [ -f "$COMPANION_DIR/companion_headless.sh" ] || {
         echo "FATAL: Companion extraction failed - companion_headless.sh not found"
@@ -192,7 +198,7 @@ else
 fi
 
 # Companion systemd service (runs as mv user)
-# Note: COMPANION_DEV_MODULES env var is broken in 5.0.1; use --extra-module-path instead
+# Note: COMPANION_DEV_MODULES env var is broken in 5.x; use --extra-module-path instead
 cat > /etc/systemd/system/companion.service <<EOF
 [Unit]
 Description=Bitfocus Companion

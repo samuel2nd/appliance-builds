@@ -89,10 +89,10 @@ The `late_command` fetches and runs `bootstrap.sh`, which:
 
 4. **Node.js 22:** From NodeSource repository
 
-5. **Bitfocus Companion 5.0.1:** Installed to `/opt/companion`, runs as systemd service with `--extra-module-path /home/mv/dev` (env var `COMPANION_DEV_MODULES` is broken in 5.0.1)
+5. **Bitfocus Companion 5.0.7:** Installed to `/opt/companion`, runs as systemd service with `--extra-module-path /home/mv/dev` (env var `COMPANION_DEV_MODULES` is broken in 5.x)
 
 6. **Companion dev modules:** Installed to `/home/mv/dev/`:
-   - `cobalt-9905-color-corrector` v2.1.1 (uses `@companion-module/base` v1.x with node18 runtime; Companion 5.0.1 bundles node18 so this loads, but may need updating to v2.x API)
+   - `cobalt-9905-color-corrector` v2.1.1 (v1.x API with node18 runtime; loads on 5.0.7)
    - `companion-module-rtspmv` v0.2.0 (v2.x API, node22)
    - `companion-module-rtsp-thumbnail` v0.4.0 (v2.x API, node22)
 
@@ -108,7 +108,7 @@ The `late_command` fetches and runs `bootstrap.sh`, which:
 
 | Component | Version |
 |-----------|---------|
-| Companion | 5.0.1 |
+| Companion | 5.0.7 |
 | Node.js | 22.x |
 | go2rtc | v1.9.15 |
 | RTSPmv | 0.4.0 |
