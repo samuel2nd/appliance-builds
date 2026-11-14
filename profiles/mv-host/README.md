@@ -46,22 +46,21 @@ sudo nmcli connection up "Camera Network"
 
 ## Site-Specific Configuration
 
-Site-specific values (IPs, interface names, hostname) are stored in a local `site.env` file that is **not tracked in git**.
+Site-specific values (IPs, interface names, hostname) live in **local site files** that are **never committed** to the repo. Each site file is stored locally (e.g., `sites/mu12-companion.env`) and copied to the target before bootstrap runs.
 
-**Before running bootstrap.sh**, copy the template and customize:
+**Before running bootstrap.sh**, copy the site file to the target:
 
 ```bash
-# On the target machine (via SSH or local terminal):
-curl -fsSL https://raw.githubusercontent.com/samuel2nd/appliance-builds/master/profiles/mv-host/site.env.example \
-  -o /tmp/site.env
+# From your workstation (where sites/*.env lives):
+scp sites/<SITE_NAME>.env mv@<TARGET_IP>:/tmp/site.env
 
-# Edit with your site values:
-nano /tmp/site.env
+# Then on the target, run bootstrap:
+sudo /tmp/bootstrap.sh
 ```
 
 If `/tmp/site.env` is not present, bootstrap.sh will warn and use defaults (`hostname=mv-appliance`).
 
-See `site.env.example` for available variables.
+See `site.env.example` for available variables. Create your site file based on this template.
 
 ## What the Preseed Answers
 
@@ -90,12 +89,12 @@ The `late_command` fetches and runs `bootstrap.sh`, which:
 
 4. **Node.js 22:** From NodeSource repository
 
-5. **Bitfocus Companion 5.0.1:** Installed to `/opt/companion`, runs as systemd service with `COMPANION_DEV_MODULES=/home/mv/dev`
+5. **Bitfocus Companion 5.0.1:** Installed to `/opt/companion`, runs as systemd service with `--extra-module-path /home/mv/dev` (env var `COMPANION_DEV_MODULES` is broken in 5.0.1)
 
 6. **Companion dev modules:** Installed to `/home/mv/dev/`:
-   - `cobalt-9905-color-corrector` v2.1.1
-   - `companion-module-rtspmv` v0.2.0
-   - `companion-module-rtsp-thumbnail` v0.4.0
+   - `cobalt-9905-color-corrector` v2.1.1 (uses `@companion-module/base` v1.x with node18 runtime; Companion 5.0.1 bundles node18 so this loads, but may need updating to v2.x API)
+   - `companion-module-rtspmv` v0.2.0 (v2.x API, node22)
+   - `companion-module-rtsp-thumbnail` v0.4.0 (v2.x API, node22)
 
 7. **RTSPmv 0.4.0:** Installed to `/home/mv/.local/share/rtspmv`, runs as systemd user service
 

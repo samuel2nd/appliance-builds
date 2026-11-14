@@ -192,6 +192,7 @@ else
 fi
 
 # Companion systemd service (runs as mv user)
+# Note: COMPANION_DEV_MODULES env var is broken in 5.0.1; use --extra-module-path instead
 cat > /etc/systemd/system/companion.service <<EOF
 [Unit]
 Description=Bitfocus Companion
@@ -201,8 +202,8 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=$MV_USER
-Environment=COMPANION_DEV_MODULES=$MV_HOME/dev
-ExecStart=$COMPANION_DIR/companion_headless.sh
+WorkingDirectory=$COMPANION_DIR/resources
+ExecStart=$COMPANION_DIR/resources/node-runtimes/main/bin/node main.js --extra-module-path $MV_HOME/dev
 Restart=always
 RestartSec=5
 
