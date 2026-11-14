@@ -87,28 +87,30 @@ See `site.env.example` for available variables. Create your site file based on t
 
 The `late_command` fetches and runs `bootstrap.sh`, which:
 
-1. **System packages:** `intel-media-va-driver`, `vainfo`, `intel-gpu-tools`, `ffmpeg`, `git`, `curl`, `python3`, `firefox-esr`
+1. **System packages:** `intel-media-va-driver`, `vainfo`, `intel-gpu-tools`, `ffmpeg`, `git`, `curl`, `python3`, `firefox-esr`, `libusb-1.0-0-dev`, `libudev-dev`
 
-2. **Sleep/lock prevention:** Masks `sleep.target`, `suspend.target`, `hibernate.target`, `hybrid-sleep.target`; dconf system profile with locks disables screen blank, screensaver, auto-suspend, screen lock (`lock-enabled=false`), and lockdown (`disable-lock-screen=true`) for both user sessions and GDM login screen
+2. **USB surface permissions:** Installs udev rules (`50-companion.rules`) for Stream Deck, X-keys, Loupedeck, and other USB HID surfaces; adds `mv` user to `plugdev`, `dialout`, `input`, `audio` groups
 
-3. **GNOME autologin:** Configures GDM to auto-login as `mv` user
+3. **Sleep/lock prevention:** Masks `sleep.target`, `suspend.target`, `hibernate.target`, `hybrid-sleep.target`; dconf system profile with locks disables screen blank, screensaver, auto-suspend, screen lock (`lock-enabled=false`), and lockdown (`disable-lock-screen=true`) for both user sessions and GDM login screen
 
-4. **Node.js 22:** From NodeSource repository
+4. **GNOME autologin:** Configures GDM to auto-login as `mv` user
 
-5. **Bitfocus Companion 5.0.7:** Installed to `/opt/companion`, runs as systemd service with `--extra-module-path /home/mv/dev` (env var `COMPANION_DEV_MODULES` is broken in 5.x)
+5. **Node.js 22:** From NodeSource repository
 
-6. **Companion dev modules:** Installed to `/home/mv/dev/`:
+6. **Bitfocus Companion 5.0.7:** Installed to `/opt/companion`, runs as systemd service with `--extra-module-path /home/mv/dev` (env var `COMPANION_DEV_MODULES` is broken in 5.x)
+
+7. **Companion dev modules:** Installed to `/home/mv/dev/`:
    - `cobalt-9905-color-corrector` v2.1.1 (v1.x API with node18 runtime; `@companion-module/base` pinned to 1.14.1 for Companion 5.0.7 compatibility)
    - `companion-module-rtspmv` v0.2.0 (v2.x API, node22)
    - `companion-module-rtsp-thumbnail` v0.4.0 (v2.x API, node22)
 
-7. **RTSPmv 0.4.0:** Installed to `/home/mv/.local/share/rtspmv`, runs as systemd user service
+8. **RTSPmv 0.4.0:** Installed to `/home/mv/.local/share/rtspmv`, runs as systemd user service
 
-8. **go2rtc v1.9.15:** Downloaded with SHA256 verification: `20b46c6910734cb05ecefb234066f36868ff19b42ba1418a7a32e13a3e035712`; RTSPmv configures go2rtc with restricted `origin` (127.0.0.1/localhost only) to allow WebSocket connections from the browser. Note: Kamrui runs RTSPmv 0.3.0 which doesn't require the origin fix
+9. **go2rtc v1.9.15:** Downloaded with SHA256 verification: `20b46c6910734cb05ecefb234066f36868ff19b42ba1418a7a32e13a3e035712`; RTSPmv configures go2rtc with restricted `origin` (127.0.0.1/localhost only) to allow WebSocket connections from the browser. Note: Kamrui runs RTSPmv 0.3.0 which doesn't require the origin fix
 
-9. **MV autostart:** Firefox ESR kiosk mode with VAAPI hardware decode, opens `http://127.0.0.1:8090/mv` at login; GNOME application launchers for RTSPmv
+10. **MV autostart:** Firefox ESR kiosk mode with VAAPI hardware decode, opens `http://127.0.0.1:8090/mv` at login; GNOME application launchers for RTSPmv
 
-10. **Firewall (if ufw active):** Opens ports 8090 (RTSPmv), 8555 (WebRTC), 8000 (Companion)
+11. **Firewall (if ufw active):** Opens ports 8090 (RTSPmv), 8555 (WebRTC), 8000 (Companion)
 
 ## Pinned Versions
 
@@ -177,6 +179,7 @@ qemu-system-x86_64 \
 - [ ] All apt packages install without errors
 - [ ] Companion service starts (`systemctl status companion`)
 - [ ] Dev modules appear in Companion UI
+- [ ] USB surfaces detected in Companion (Stream Deck, X-keys, etc.)
 - [ ] RTSPmv service starts (`systemctl --user status rtspmv`)
 - [ ] Autologin works (no login prompt at boot)
 - [ ] Screen doesn't lock or blank
@@ -291,6 +294,21 @@ ipv4.never-default yes
 
 **Fix:** Ensure camera NIC (with internet) is connected and configured as default route before running any commands that need network access.
 
+### 12. Stream Deck / USB Surfaces Not Detected
+
+**Problem:** Companion didn't detect USB Stream Deck even though `lsusb` showed it. The `mv` user couldn't access `/dev/hidraw*` devices.
+
+**Fix:** Install udev rules and add user to required groups:
+```bash
+# Install udev rules (50-companion.rules with MODE="666", GROUP="plugdev")
+# Add user to groups: plugdev, dialout, input, audio
+usermod -aG plugdev,dialout,input,audio mv
+udevadm control --reload-rules && udevadm trigger
+systemctl restart companion
+```
+
+The official Companion-Pi installer creates a dedicated `companion` user with its own group. Our setup runs as `mv` user with `plugdev` group ownership on hidraw devices.
+
 ## Verification
 
 After first boot:
@@ -324,6 +342,21 @@ systemctl --user status rtspmv
 systemctl status companion
 journalctl --user -u rtspmv -f
 ```
+
+### Stream Deck / USB Surfaces
+USB surfaces (Stream Deck, X-keys, Loupedeck) should appear in Companion > Surfaces:
+```bash
+# Check Companion logs for surface detection
+sudo journalctl -u companion | grep -i "surface.*ready"
+# Should show: Surface panel ready: streamdeck:<SERIAL>
+```
+
+If USB surfaces don't appear:
+1. Verify udev rules: `ls -la /etc/udev/rules.d/50-companion.rules`
+2. Check hidraw permissions: `ls -la /dev/hidraw*` (should be `crw-rw-rw-` with group `plugdev`)
+3. Verify user groups: `id mv | grep plugdev`
+4. Reload rules: `sudo udevadm control --reload-rules && sudo udevadm trigger`
+5. Restart Companion: `sudo systemctl restart companion`
 
 ## Updating a Dev Module
 

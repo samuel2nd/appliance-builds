@@ -54,10 +54,94 @@ apt-get update
 apt-get install -y \
     intel-media-va-driver vainfo intel-gpu-tools \
     ffmpeg git curl wget gnupg ca-certificates \
-    python3 firefox-esr
+    python3 firefox-esr \
+    libusb-1.0-0-dev libudev-dev
 
 # ============================================================
-# 2. Disable sleep/suspend and configure GNOME autologin
+# 2. USB surface (Stream Deck) permissions
+# ============================================================
+echo ">>> Configuring USB surface (Stream Deck) permissions..."
+
+# Add mv user to required groups for USB/HID access
+usermod -aG plugdev,dialout,input,audio "$MV_USER"
+echo "  Added $MV_USER to plugdev, dialout, input, audio groups"
+
+# Companion udev rules for USB HID surfaces (Stream Deck, X-keys, Loupedeck, etc.)
+cat > /etc/udev/rules.d/50-companion.rules <<'EOF'
+# Companion udev rules for USB HID surfaces
+# Stream Deck, Infinitton, X-keys, Contour ShuttleXpress, Loupedeck
+
+SUBSYSTEM=="input", GROUP="input", MODE="0666"
+
+# Infinitton (iDisplay)
+SUBSYSTEM=="usb", ATTRS{idVendor}=="ffff", ATTRS{idProduct}=="1f40", MODE:="666", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="ffff", ATTRS{idProduct}=="1f40", MODE:="666", GROUP="plugdev"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="ffff", ATTRS{idProduct}=="1f41", MODE:="666", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="ffff", ATTRS{idProduct}=="1f41", MODE:="666", GROUP="plugdev"
+
+# Elgato Stream Deck (all models, vendor 0fd9)
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0060", MODE:="666", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0060", MODE:="666", GROUP="plugdev"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0063", MODE:="666", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0063", MODE:="666", GROUP="plugdev"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="006c", MODE:="666", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="006c", MODE:="666", GROUP="plugdev"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="006d", MODE:="666", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="006d", MODE:="666", GROUP="plugdev"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0080", MODE:="666", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0080", MODE:="666", GROUP="plugdev"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0084", MODE:="666", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0084", MODE:="666", GROUP="plugdev"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0086", MODE:="666", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0086", MODE:="666", GROUP="plugdev"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="008f", MODE:="666", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="008f", MODE:="666", GROUP="plugdev"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0090", MODE:="666", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0090", MODE:="666", GROUP="plugdev"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="009a", MODE:="666", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="009a", MODE:="666", GROUP="plugdev"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="00a5", MODE:="666", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="00a5", MODE:="666", GROUP="plugdev"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="00aa", MODE:="666", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="00aa", MODE:="666", GROUP="plugdev"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="00b3", MODE:="666", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="00b3", MODE:="666", GROUP="plugdev"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="00b8", MODE:="666", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="00b8", MODE:="666", GROUP="plugdev"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="00b9", MODE:="666", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="00b9", MODE:="666", GROUP="plugdev"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="00ba", MODE:="666", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="00ba", MODE:="666", GROUP="plugdev"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="00c6", MODE:="666", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="00c6", MODE:="666", GROUP="plugdev"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="00e4", MODE:="666", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="00e4", MODE:="666", GROUP="plugdev"
+
+# X-keys (all devices from P.I. Engineering)
+SUBSYSTEM=="usb", ATTRS{idVendor}=="05f3", MODE:="666", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="05f3", MODE:="666", GROUP="plugdev"
+
+# Contour ShuttleXpress / ShuttlePro
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0b33", MODE:="666", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="0b33", MODE:="666", GROUP="plugdev"
+
+# Loupedeck (all models)
+SUBSYSTEM=="usb", ATTRS{idVendor}=="2ec2", MODE:="666", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="2ec2", MODE:="666", GROUP="plugdev"
+
+# Razer Stream Controller
+SUBSYSTEM=="usb", ATTRS{idVendor}=="1532", ATTRS{idProduct}=="0d06", MODE:="666", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="1532", ATTRS{idProduct}=="0d06", MODE:="666", GROUP="plugdev"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="1532", ATTRS{idProduct}=="0d07", MODE:="666", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="1532", ATTRS{idProduct}=="0d07", MODE:="666", GROUP="plugdev"
+EOF
+
+udevadm control --reload-rules
+udevadm trigger
+echo "  USB HID surface udev rules installed"
+
+# ============================================================
+# 3. Disable sleep/suspend and configure GNOME autologin
 # ============================================================
 echo ">>> Disabling sleep/suspend at systemd level..."
 systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
@@ -147,7 +231,7 @@ dconf update
 echo "  dconf system profile with locks configured"
 
 # ============================================================
-# 3. Node.js (for Companion)
+# 4. Node.js (for Companion)
 # ============================================================
 echo ">>> Installing Node.js $NODE_VERSION..."
 if ! command -v node >/dev/null || ! node -v | grep -q "v$NODE_VERSION"; then
@@ -157,7 +241,7 @@ fi
 echo "  Node.js $(node -v) installed"
 
 # ============================================================
-# 4. Bitfocus Companion (tar.gz from CDN)
+# 5. Bitfocus Companion (tar.gz from CDN)
 # ============================================================
 echo ">>> Installing Bitfocus Companion $COMPANION_VERSION..."
 COMPANION_DIR="/opt/companion"
@@ -222,7 +306,7 @@ systemctl enable companion.service
 echo "  Companion $COMPANION_VERSION service configured"
 
 # ============================================================
-# 5. Companion dev modules (clone from repo)
+# 6. Companion dev modules (clone from repo)
 # ============================================================
 echo ">>> Setting up Companion dev modules..."
 mkdir -p "$MV_HOME/dev"
@@ -261,7 +345,7 @@ done
 echo "  Dev modules installed"
 
 # ============================================================
-# 6. RTSPmv
+# 7. RTSPmv
 # ============================================================
 echo ">>> Installing RTSPmv $RTSPMV_VERSION..."
 RTSPMV_DIR="$MV_HOME/.local/share/rtspmv"
@@ -331,7 +415,7 @@ sudo -u "$MV_USER" XDG_RUNTIME_DIR="/run/user/$(id -u $MV_USER)" systemctl --use
 echo "  RTSPmv installed"
 
 # ============================================================
-# 7. MV autostart (Firefox ESR kiosk with VAAPI)
+# 8. MV autostart (Firefox ESR kiosk with VAAPI)
 # ============================================================
 echo ">>> Configuring MV autostart..."
 AUTOSTART_DIR="$MV_HOME/.config/autostart"
@@ -399,7 +483,7 @@ chown -R "$MV_USER:$MV_USER" "$APPS_DIR"
 echo "  Application launchers created"
 
 # ============================================================
-# 8. Firewall (if ufw is active)
+# 9. Firewall (if ufw is active)
 # ============================================================
 if command -v ufw >/dev/null && ufw status 2>/dev/null | grep -q "Status: active"; then
     echo ">>> Configuring firewall..."
@@ -410,7 +494,7 @@ if command -v ufw >/dev/null && ufw status 2>/dev/null | grep -q "Status: active
 fi
 
 # ============================================================
-# 9. Final
+# 10. Final
 # ============================================================
 echo ">>> Starting services..."
 systemctl start companion.service || {
