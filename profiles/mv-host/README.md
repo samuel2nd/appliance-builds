@@ -12,27 +12,33 @@ Unattended Debian 13 installation for a camera multiviewer appliance.
 
 ## Network Configuration
 
-The appliance supports dual-NIC setup for network segmentation (management + camera VLAN).
+The appliance supports dual-NIC setup: camera NIC provides internet (default route), management NIC for local access only.
 
-| Interface | Profile | IP Address | Purpose |
-|-----------|---------|------------|---------|
-| `<MGMT_IF>` (onboard) | Wired connection 1 | `<MGMT_IP>` | Management (SSH, Companion UI) |
-| `<CAM_IF>` (USB) | Camera Network | `<CAM_IP>` | Camera VLAN |
+| Interface | Profile | IP Address | Gateway | Purpose |
+|-----------|---------|------------|---------|---------|
+| `<MGMT_IF>` (onboard) | Wired connection 1 | `<MGMT_IP>` | none (never-default) | Management (SSH, Companion UI) |
+| `<CAM_IF>` (USB) | Camera Network | `<CAM_IP>` | `<CAM_GATEWAY>` | Camera VLAN + internet |
 
 **Post-install network setup** (not automated in bootstrap):
 
 ```bash
 # Bind management profile to onboard NIC (find interface name with: ip link)
-sudo nmcli connection modify "Wired connection 1" connection.interface-name <MGMT_IF>
+# Set never-default so it doesn't become the default route
+sudo nmcli connection modify "Wired connection 1" \
+  connection.interface-name <MGMT_IF> \
+  ipv4.never-default yes \
+  ipv4.gateway ""
 
-# Create camera network profile (static, never-default, no gateway)
+# Create camera network profile with gateway (default route for internet)
 sudo nmcli connection add \
   con-name "Camera Network" \
   type ethernet \
   ifname <CAM_IF> \
   ipv4.method manual \
   ipv4.addresses <CAM_IP>/24 \
-  ipv4.never-default yes \
+  ipv4.gateway <CAM_GATEWAY> \
+  ipv4.dns <CAM_DNS> \
+  ipv4.never-default no \
   ipv6.method disabled \
   connection.autoconnect yes
 
