@@ -58,7 +58,7 @@ Each profile's preseed can be accessed via:
 
 ## Custom ISO with Preseed Baked In
 
-Instead of manually selecting "Advanced options > Automated install" and typing the preseed URL, build a custom ISO with your profile's preseed URL baked in. The boot menu will default to "Install mv-host (automated)" with a 5-second timeout.
+Instead of manually selecting "Advanced options > Automated install" and typing the preseed URL, build a custom ISO with your profile's preseed URL baked in. The boot menu highlights "Install mv-host (automated)" first; press Enter to start (no auto-timeout for safety).
 
 ### Building the Custom ISO (Linux)
 

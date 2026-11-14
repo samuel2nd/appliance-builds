@@ -117,9 +117,9 @@ GRUBEOF
     ' "$GRUB_CFG" > "$WORK_DIR/grub.cfg.new"
     mv "$WORK_DIR/grub.cfg.new" "$GRUB_CFG"
 
-    # Set as default (0-indexed, our entry is now first)
-    sed -i 's/set default=.*/set default=0/' "$GRUB_CFG"
-    sed -i 's/set timeout=.*/set timeout=5/' "$GRUB_CFG"
+    # Safety: no timeout - require explicit selection for disk-wiping install
+    # Our entry is first but user must press Enter to start it
+    sed -i 's/set timeout=.*/set timeout=-1/' "$GRUB_CFG"
 fi
 
 # Isolinux config (BIOS boot)
@@ -142,9 +142,10 @@ if [[ -f "$TXT_CFG" ]]; then
 fi
 
 if [[ -f "$ISOLINUX_CFG" ]]; then
-    # Set timeout and default
-    sed -i 's/timeout .*/timeout 50/' "$ISOLINUX_CFG"
-    # Default to our custom entry
+    # Safety: timeout 0 = wait indefinitely for user selection
+    # Our entry is first but user must press Enter to start disk-wiping install
+    sed -i 's/timeout .*/timeout 0/' "$ISOLINUX_CFG"
+    # Default to our custom entry (highlighted first)
     sed -i "s/default .*/default auto-$PROFILE/" "$ISOLINUX_CFG"
 fi
 
