@@ -98,7 +98,7 @@ The `late_command` fetches and runs `bootstrap.sh`, which:
 5. **Bitfocus Companion 5.0.7:** Installed to `/opt/companion`, runs as systemd service with `--extra-module-path /home/mv/dev` (env var `COMPANION_DEV_MODULES` is broken in 5.x)
 
 6. **Companion dev modules:** Installed to `/home/mv/dev/`:
-   - `cobalt-9905-color-corrector` v2.1.1 (v1.x API with node18 runtime; loads on 5.0.7)
+   - `cobalt-9905-color-corrector` v2.1.1 (v1.x API with node18 runtime; `@companion-module/base` pinned to 1.14.1 for Companion 5.0.7 compatibility)
    - `companion-module-rtspmv` v0.2.0 (v2.x API, node22)
    - `companion-module-rtsp-thumbnail` v0.4.0 (v2.x API, node22)
 
@@ -119,6 +119,7 @@ The `late_command` fetches and runs `bootstrap.sh`, which:
 | go2rtc | v1.9.15 |
 | RTSPmv | 0.4.0 |
 | cobalt-9905-color-corrector | 2.1.1 |
+| @companion-module/base (Cobalt) | 1.14.1 |
 | companion-module-rtspmv | 0.2.0 |
 | companion-module-rtsp-thumbnail | 0.4.0 |
 

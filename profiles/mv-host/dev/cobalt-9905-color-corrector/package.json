@@ -9,7 +9,7 @@
 		"test": "node test/simulate.js"
 	},
 	"dependencies": {
-		"@companion-module/base": "^1.12.0",
+		"@companion-module/base": "1.14.1",
 		"ws": "^8.16.0"
 	}
 }
