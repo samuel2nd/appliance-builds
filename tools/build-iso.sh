@@ -95,18 +95,27 @@ GRUB_CFG="$ISO_EXTRACT/boot/grub/grub.cfg"
 if [[ -f "$GRUB_CFG" ]]; then
     echo -e "${YELLOW}Adding GRUB menu entry...${NC}"
 
-    # Insert custom entry after the menuentry for "Install"
-    # The entry uses auto=true priority=critical for fully unattended install
-    GRUB_ENTRY="menuentry 'Install $PROFILE (automated)' --hotkey=a {
+    # Create custom entry file
+    cat > "$WORK_DIR/grub-entry.txt" <<GRUBEOF
+
+menuentry 'Install $PROFILE (automated)' --hotkey=a {
     set background_color=black
     linux    /install.amd/vmlinuz auto=true priority=critical url=$PRESEED_URL vga=788 --- quiet
     initrd   /install.amd/initrd.gz
-}"
+}
+GRUBEOF
 
-    # Insert after first menuentry line
-    sed -i "/^menuentry 'Install'/a \\
-\\
-$GRUB_ENTRY" "$GRUB_CFG"
+    # Insert after first menuentry line using awk
+    awk -v entry="$(cat "$WORK_DIR/grub-entry.txt")" '
+        /^menuentry .Install/ && !inserted {
+            print
+            print entry
+            inserted=1
+            next
+        }
+        {print}
+    ' "$GRUB_CFG" > "$WORK_DIR/grub.cfg.new"
+    mv "$WORK_DIR/grub.cfg.new" "$GRUB_CFG"
 
     # Set as default (0-indexed, our entry becomes second)
     sed -i 's/set default=.*/set default=1/' "$GRUB_CFG"
