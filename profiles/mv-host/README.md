@@ -181,6 +181,7 @@ qemu-system-x86_64 \
 - [ ] Dev modules appear in Companion UI
 - [ ] USB surfaces detected in Companion (Stream Deck, X-keys, etc.)
 - [ ] RTSPmv service starts (`systemctl --user status rtspmv`)
+- [ ] VAAPI decode active under X11 (`intel_gpu_top` shows Video engine activity)
 - [ ] MV fullscreen after cold boot (no GNOME panels visible)
 - [ ] Autologin works (no login prompt at boot)
 - [ ] Screen doesn't lock or blank
