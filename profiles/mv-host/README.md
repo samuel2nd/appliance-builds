@@ -181,6 +181,7 @@ qemu-system-x86_64 \
 - [ ] Dev modules appear in Companion UI
 - [ ] USB surfaces detected in Companion (Stream Deck, X-keys, etc.)
 - [ ] RTSPmv service starts (`systemctl --user status rtspmv`)
+- [ ] MV fullscreen after cold boot (no GNOME panels visible)
 - [ ] Autologin works (no login prompt at boot)
 - [ ] Screen doesn't lock or blank
 
@@ -308,6 +309,19 @@ systemctl restart companion
 ```
 
 The official Companion-Pi installer creates a dedicated `companion` user with its own group. Our setup runs as `mv` user with `plugdev` group ownership on hidraw devices.
+
+### 13. Firefox --kiosk Not True Fullscreen on GNOME/Wayland
+
+**Problem:** Firefox's `--kiosk` flag doesn't hide GNOME panels on Wayland. The MV opens maximized but top bar and dock remain visible.
+
+**Fix:** Disable Wayland (use X11) and use xdotool to send F11 after Firefox starts:
+```bash
+# In GDM config: WaylandEnable=false
+# Wrapper script waits for window, then:
+xdotool key --window "$WID" F11
+```
+
+The `kiosk-fullscreen.sh` wrapper handles this automatically.
 
 ## Verification
 

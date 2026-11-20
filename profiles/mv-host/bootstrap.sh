@@ -54,7 +54,7 @@ apt-get update
 apt-get install -y \
     intel-media-va-driver vainfo intel-gpu-tools \
     ffmpeg git curl wget gnupg ca-certificates \
-    python3 firefox-esr \
+    python3 firefox-esr xdotool \
     libusb-1.0-0-dev libudev-dev
 
 # ============================================================
@@ -157,7 +157,9 @@ done
 if [ -n "$GDM_CONF" ]; then
     sed -i '/^AutomaticLoginEnable/d; /^AutomaticLogin[[:space:]]*=/d' "$GDM_CONF"
     sed -i "/^\[daemon\]/a AutomaticLoginEnable = true\nAutomaticLogin = $MV_USER" "$GDM_CONF"
-    echo "  GDM autologin configured in $GDM_CONF"
+    # Disable Wayland - xdotool (used for F11 fullscreen) requires X11
+    sed -i 's/#WaylandEnable=false/WaylandEnable=false/' "$GDM_CONF"
+    echo "  GDM autologin configured, Wayland disabled in $GDM_CONF"
 else
     echo "  WARNING: GDM config not found"
 fi
@@ -415,35 +417,73 @@ sudo -u "$MV_USER" XDG_RUNTIME_DIR="/run/user/$(id -u $MV_USER)" systemctl --use
 echo "  RTSPmv installed"
 
 # ============================================================
-# 8. MV autostart (Firefox ESR kiosk with VAAPI)
+# 8. MV kiosk service (Firefox ESR true fullscreen)
 # ============================================================
-echo ">>> Configuring MV autostart..."
-AUTOSTART_DIR="$MV_HOME/.config/autostart"
-mkdir -p "$AUTOSTART_DIR"
+echo ">>> Configuring MV kiosk service..."
 
-cat > "$AUTOSTART_DIR/rtspmv-kiosk.desktop" <<EOF
-[Desktop Entry]
-Type=Application
-Name=RTSPmv Kiosk
-Comment=Open MV fullscreen at login
-Exec=/usr/bin/firefox-esr --kiosk http://127.0.0.1:8090/mv
-X-GNOME-Autostart-enabled=true
+# Wrapper script that launches Firefox and sends F11 for true fullscreen
+# Firefox --kiosk alone doesn't hide GNOME panels; F11 does
+cat > "$RTSPMV_DIR/kiosk-fullscreen.sh" <<'KIOSKSCRIPT'
+#!/bin/bash
+# Wrapper to launch Firefox kiosk and force true fullscreen with F11
+# Firefox --kiosk doesn't hide GNOME panels; F11 does
+
+PROFILE="$HOME/.config/rtspmv/firefox-profile"
+URL="http://127.0.0.1:8090/mv"
+
+# Wait for RTSPmv server
+while ! curl -s "http://127.0.0.1:8090/api/state" >/dev/null 2>&1; do
+    sleep 2
+done
+
+# Clear stale Firefox locks (from hard power cuts)
+rm -f "$PROFILE/lock" "$PROFILE/.parentlock" 2>/dev/null
+
+# Launch Firefox in background
+firefox-esr --kiosk --no-remote --profile "$PROFILE" "$URL" &
+FF_PID=$!
+
+# Wait for Firefox window to appear
+sleep 3
+for i in {1..10}; do
+    WID=$(DISPLAY=:0 xdotool search --pid $FF_PID 2>/dev/null | head -1)
+    [ -n "$WID" ] && break
+    sleep 1
+done
+
+# Send F11 to toggle true fullscreen (hides GNOME panels)
+if [ -n "$WID" ]; then
+    DISPLAY=:0 xdotool key --window "$WID" F11
+fi
+
+# Keep running (systemd watches this PID)
+wait $FF_PID
+KIOSKSCRIPT
+chmod +x "$RTSPMV_DIR/kiosk-fullscreen.sh"
+
+# Systemd user service for the kiosk
+cat > "$SYSTEMD_USER_DIR/rtspmv-kiosk.service" <<EOF
+[Unit]
+Description=RTSPmv MV Kiosk (Firefox true fullscreen)
+After=rtspmv.service
+Requires=rtspmv.service
+
+[Service]
+Type=simple
+ExecStart=$RTSPMV_DIR/kiosk-fullscreen.sh
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target
 EOF
 
-# Firefox hardware acceleration config
-FF_PREFS_DIR="$MV_HOME/.mozilla/firefox"
-mkdir -p "$FF_PREFS_DIR"
-cat > "$FF_PREFS_DIR/user.js.template" <<'EOF'
-// VAAPI hardware video decode
-user_pref("media.ffmpeg.vaapi.enabled", true);
-user_pref("media.hardware-video-decoding.enabled", true);
-user_pref("media.hardware-video-decoding.force-enabled", true);
-user_pref("gfx.webrender.all", true);
-user_pref("widget.dmabuf.force-enabled", true);
-EOF
+chown -R "$MV_USER:$MV_USER" "$MV_HOME/.config" "$RTSPMV_DIR"
 
-chown -R "$MV_USER:$MV_USER" "$AUTOSTART_DIR" "$FF_PREFS_DIR"
-echo "  Autostart configured"
+# Enable kiosk service
+sudo -u "$MV_USER" XDG_RUNTIME_DIR="/run/user/$(id -u $MV_USER)" systemctl --user daemon-reload 2>/dev/null || true
+sudo -u "$MV_USER" XDG_RUNTIME_DIR="/run/user/$(id -u $MV_USER)" systemctl --user enable rtspmv-kiosk.service 2>/dev/null || true
+echo "  Kiosk service configured (xdotool F11 for true fullscreen)"
 
 # GNOME application launchers
 APPS_DIR="$MV_HOME/.local/share/applications"
