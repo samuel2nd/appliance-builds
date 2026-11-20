@@ -494,7 +494,38 @@ if command -v ufw >/dev/null && ufw status 2>/dev/null | grep -q "Status: active
 fi
 
 # ============================================================
-# 10. Final
+# 10. Journald limits and hardware watchdog
+# ============================================================
+echo ">>> Configuring journald limits..."
+mkdir -p /etc/systemd/journald.conf.d
+cat > /etc/systemd/journald.conf.d/limits.conf <<'JOURNALD'
+[Journal]
+Storage=persistent
+SystemMaxUse=500M
+RuntimeMaxUse=100M
+RateLimitIntervalSec=30s
+RateLimitBurst=1000
+JOURNALD
+systemctl restart systemd-journald
+echo "  Journald limits configured (persistent, 500M max, rate-limited)"
+
+echo ">>> Configuring hardware watchdog..."
+mkdir -p /etc/systemd/system.conf.d
+cat > /etc/systemd/system.conf.d/watchdog.conf <<'WATCHDOG'
+[Manager]
+RuntimeWatchdogSec=30s
+WATCHDOG
+
+# Load iTCO_wdt on boot (Intel TCO watchdog)
+echo 'iTCO_wdt' > /etc/modules-load.d/watchdog.conf
+modprobe iTCO_wdt 2>/dev/null || true
+
+# Reload systemd to pick up watchdog config
+systemctl daemon-reexec
+echo "  Hardware watchdog configured (30s timeout, iTCO_wdt)"
+
+# ============================================================
+# 11. Final
 # ============================================================
 echo ">>> Starting services..."
 systemctl start companion.service || {

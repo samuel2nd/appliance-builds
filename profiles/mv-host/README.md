@@ -385,6 +385,69 @@ cp -r profiles/mv-host profiles/new-profile
 
 4. **RTSP Thumbnail ffmpeg path:** In each RTSP Thumbnail connection, clear any Windows ffmpeg path (leave blank to use system ffmpeg)
 
+## Troubleshooting
+
+### Check Previous Boot Logs After Freeze
+
+With persistent journald (configured by bootstrap), logs survive reboots. After a freeze that required hard reboot:
+
+```bash
+# Kernel messages from previous boot
+journalctl -b -1 -k | grep -iE 'oom|kill|i915|hang|blocked'
+
+# All previous boot messages
+journalctl -b -1 --priority=0..4
+```
+
+### Companion SIGABRT / Segfault
+
+If Companion crashes with SIGABRT, check `~/segfault.log`. This is written by Companion's built-in segfault handler. Example from Nov 2026:
+
+```
+/opt/companion/resources/node-runtimes/main/bin/node(_ZN4node7FPrintF...)
+...
+/lib/x86_64-linux-gnu/libc.so.6(abort+0x22)
+```
+
+This indicates a crash in the Node.js runtime, possibly due to memory pressure or a module bug. Check journalctl for OOM kills around the same time.
+
+### High-Rate Module Errors (CPU Saturation)
+
+Companion modules that poll rapidly with wrong settings can saturate CPU with error logging. Symptoms:
+- System freeze or extreme slowness
+- Load average >> number of CPU cores
+- journalctl shows same error repeating hundreds of times per second
+
+**Example:** Evertz Quartz router module with `max_sources`/`max_destinations` set higher than actual router size, combined with 50ms poll interval = ~600 errors/second.
+
+**Diagnosis:**
+```bash
+# Check for repeated errors
+journalctl -u companion --since "5 minutes ago" | sort | uniq -c | sort -rn | head
+
+# Check error rate
+journalctl -u companion --since "1 minute ago" | grep -c error
+```
+
+**Fix:** Reduce poll interval or fix the module configuration. The journald rate limit (1000 burst / 30s) will cap logging but won't stop the CPU usage from the module itself.
+
+### Verify Watchdog Is Active
+
+```bash
+systemctl show | grep -i watchdog
+# Should show: RuntimeWatchdogUSec=30s, WatchdogDevice=/dev/watchdog0
+
+lsmod | grep wdt
+# Should show: iTCO_wdt, mei_wdt
+```
+
+### Vacuum Journal If Full
+
+```bash
+journalctl --disk-usage
+sudo journalctl --vacuum-size=500M
+```
+
 ## Files
 
 ```
